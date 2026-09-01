@@ -1,0 +1,87 @@
+{% extends 'customer_base.html' %}
+{% load static %}
+
+{% block title %}My Orders — QuickCart{% endblock %}
+
+{% block customer_content %}
+<div>
+  
+  <!-- Heading & Subtitle (Flowstep Screen 15) -->
+  <div class="mb-4">
+    <h1 class="fw-bold fs-3 mb-1">My orders</h1>
+    <p class="text-muted small mb-0">View and track all your purchases and delivery statuses</p>
+  </div>
+
+  <!-- Status Filter Tabs (Flowstep Screen 15) -->
+  <div class="d-flex flex-wrap gap-2 mb-4 p-1 rounded-pill" style="background: var(--bg-muted); width: fit-content;">
+    <a class="qc-pill-btn {% if current_status == 'all' %}active{% endif %}" href="{% url 'customer:orders' %}?status=all">All</a>
+    <a class="qc-pill-btn {% if current_status == 'delivered' %}active{% endif %}" href="{% url 'customer:orders' %}?status=delivered">Delivered</a>
+    <a class="qc-pill-btn {% if current_status == 'in_transit' %}active{% endif %}" href="{% url 'customer:orders' %}?status=in_transit">In transit</a>
+    <a class="qc-pill-btn {% if current_status == 'cancelled' %}active{% endif %}" href="{% url 'customer:orders' %}?status=cancelled">Cancelled</a>
+  </div>
+
+  <!-- Orders List -->
+  {% if orders %}
+  <div class="d-flex flex-column gap-3">
+    {% for order in orders %}
+    <div class="card border shadow-sm p-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+      
+      <!-- Order Card Header -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center pb-3 mb-3 border-bottom gap-2">
+        <div>
+          <span class="fw-bold fs-6">Order #{{ order.order_number }}</span>
+          <span class="text-muted small ms-2">· {{ order.created_at|date:"M d, Y" }}</span>
+        </div>
+        <div>
+          {% if order.status == 'delivered' %}
+          <span class="badge-order-delivered"><i class="bi bi-check-circle-fill me-1"></i> Delivered</span>
+          {% elif order.status == 'in_transit' or order.status == 'out_for_delivery' or order.status == 'shipped' %}
+          <span class="badge-order-transit"><i class="bi bi-truck me-1"></i> {{ order.get_status_display }}</span>
+          {% else %}
+          <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1">{{ order.get_status_display }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Items in Order -->
+      <div class="d-flex flex-column gap-3 mb-3">
+        {% for item in order.items.all %}
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-3">
+            <img src="{{ item.image_url }}" class="rounded-3" style="width: 56px; height: 56px; object-fit: cover;" alt="{{ item.product_name }}">
+            <div>
+              <div class="fw-semibold small">{{ item.product_name }}</div>
+              <div class="text-muted small">Qty: {{ item.quantity }} · ₹{{ item.price }} each</div>
+            </div>
+          </div>
+          <div class="fw-semibold">₹{{ item.total_price }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Footer / Actions -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center pt-3 border-top gap-3">
+        <div class="text-muted small">
+          Total Paid: <strong class="text-dark">₹{{ order.total_amount }}</strong> via {{ order.payment_method }}
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'customer:order_detail' order.order_number %}" class="btn btn-qc-outline btn-sm">
+            <i class="bi bi-eye"></i> View Details &amp; Live Tracking
+          </a>
+        </div>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card border p-5 text-center" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <i class="bi bi-box-seam fs-1 text-muted mb-3 d-block"></i>
+    <h5 class="fw-bold">No orders found in this view</h5>
+    <p class="text-muted small">You haven't placed any orders matching the selected filter yet.</p>
+    <a href="{% url 'store:home' %}" class="btn btn-qc-primary btn-sm mx-auto mt-2">Start Shopping</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

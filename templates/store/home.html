@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}QuickCart — Big Savings, Better Living{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 px-lg-5 py-4">
+
+  <!-- Hero Section (Flowstep Screen 2) -->
+  <section class="qc-hero-banner mb-5">
+    <div class="qc-hero-circle-1"></div>
+    <div class="qc-hero-circle-2"></div>
+    
+    <div class="position-relative z-1" style="max-width: 540px;">
+      <span class="badge mb-3 px-3 py-2 text-uppercase tracking-wider" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); font-size: 0.75rem;">
+        Limited Time Offer
+      </span>
+      <h1 class="display-5 fw-bold lh-tight mb-3 text-white">
+        Big savings, better living.
+      </h1>
+      <p class="text-white-50 fs-5 mb-4">
+        Discover everyday essentials and trending picks at prices you'll love.
+      </p>
+      <a href="{% url 'store:search' %}" class="btn btn-light rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2">
+        Explore Deals <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+  </section>
+
+  <!-- Categories Grid Section (Screen 2) -->
+  <section class="mb-5">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+      <div>
+        <h2 class="fw-bold fs-4 mb-1">Browse by Category</h2>
+        <p class="text-muted small mb-0">Find exactly what you need across top categories</p>
+      </div>
+      <a href="{% url 'store:search' %}" class="text-decoration-none fw-semibold small text-muted">
+        View All <i class="bi bi-chevron-right"></i>
+      </a>
+    </div>
+
+    <!-- Initial Top 6 Categories -->
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3">
+      {% for cat in categories|slice:":6" %}
+      <div class="col">
+        <a href="{% url 'store:category' cat.slug %}" class="qc-category-card text-decoration-none">
+          <div class="qc-category-icon">
+            <i class="bi {{ cat.icon_name }}"></i>
+          </div>
+          <span class="fw-semibold small text-truncate w-100" style="color: var(--text-main);">{{ cat.name }}</span>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Expandable Remaining Categories (When user clicks View All) -->
+    <div class="collapse mt-3" id="allHomeCategoriesCollapse">
+      <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3">
+        {% for cat in categories|slice:"6:" %}
+        <div class="col">
+          <a href="{% url 'store:category' cat.slug %}" class="qc-category-card text-decoration-none">
+            <div class="qc-category-icon">
+              <i class="bi {{ cat.icon_name }}"></i>
+            </div>
+            <span class="fw-semibold small text-truncate w-100" style="color: var(--text-main);">{{ cat.name }}</span>
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="text-center mt-3">
+      <button class="btn btn-qc-outline btn-sm rounded-pill px-4 py-2" type="button" data-bs-toggle="collapse" data-bs-target="#allHomeCategoriesCollapse" aria-expanded="false" id="btn-toggle-categories">
+        <span>View All Categories ({{ categories.count }})</span>
+        <i class="bi bi-chevron-down ms-1"></i>
+      </button>
+    </div>
+  </section>
+
+  <!-- Trending Products Carousel / Row (Screen 2) -->
+  <section class="mb-5">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+      <div>
+        <h2 class="fw-bold fs-4 mb-1">Trending Products</h2>
+        <p class="text-muted small mb-0">Highest rated picks trending this week</p>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-qc-outline btn-sm rounded-circle p-2" id="scroll-trending-left"><i class="bi bi-chevron-left"></i></button>
+        <button class="btn btn-qc-outline btn-sm rounded-circle p-2" id="scroll-trending-right"><i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+
+    <div class="row g-3 g-md-4" id="trending-products-container">
+      {% for product in trending_products %}
+      <div class="col-6 col-md-4 col-lg-3" data-product-id="{{ product.id }}" data-product-image="{{ product.main_image }}">
+        <div class="qc-product-card">
+          
+          <div class="qc-card-img-wrap">
+            <a href="{% url 'store:product_detail' product.slug %}">
+              <img src="{{ product.main_image }}" class="qc-card-img" alt="{{ product.name }}">
+            </a>
+            <button class="qc-card-heart btn-wishlist-toggle" data-product-id="{{ product.id }}" title="Save item">
+              <i class="bi bi-heart"></i>
+            </button>
+            <label class="qc-compare-checkbox-label">
+              <input type="checkbox" class="qc-compare-checkbox form-check-input m-0" value="{{ product.id }}">
+              <span>Compare</span>
+            </label>
+          </div>
+
+          <div class="d-flex flex-column flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="text-muted small">{{ product.category.name }}</span>
+              <span class="badge-trust"><i class="bi bi-shield-check"></i> {{ product.trust_score }}%</span>
+            </div>
+            
+            <a href="{% url 'store:product_detail' product.slug %}" class="fw-semibold text-truncate mb-2 text-decoration-none" style="color: var(--text-main);">
+              {{ product.name }}
+            </a>
+
+            <div class="d-flex align-items-center gap-1 text-warning small mb-3">
+              <i class="bi bi-star-fill"></i>
+              <span class="fw-semibold text-dark">{{ product.rating }}</span>
+              <span class="text-muted">({{ product.review_count }})</span>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
+              <div>
+                <span class="fw-bold fs-5">₹{{ product.price }}</span>
+                {% if product.original_price %}
+                <span class="text-muted text-decoration-line-through small ms-1">₹{{ product.original_price }}</span>
+                {% endif %}
+              </div>
+              <button class="btn btn-sm btn-qc-primary btn-add-cart" data-product-id="{{ product.id }}" title="Add to Cart">
+                <i class="bi bi-bag-plus"></i> Add
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Value Propositions Banner -->
+  <section class="p-4 rounded-4 mb-5" style="background: var(--bg-muted); border: 1px solid var(--border-color);">
+    <div class="row text-center g-4">
+      <div class="col-md-3">
+        <i class="bi bi-truck fs-3 mb-2" style="color: var(--text-main);"></i>
+        <div class="fw-semibold">Free Express Shipping</div>
+        <div class="text-muted small">On orders over ₹999</div>
+      </div>
+      <div class="col-md-3">
+        <i class="bi bi-shield-lock fs-3 text-success mb-2"></i>
+        <div class="fw-semibold">100% Secure Checkout</div>
+        <div class="text-muted small">Bank-grade 256-bit encryption</div>
+      </div>
+      <div class="col-md-3">
+        <i class="bi bi-arrow-counterclockwise fs-3 mb-2" style="color: var(--text-main);"></i>
+        <div class="fw-semibold">7 Days Easy Return</div>
+        <div class="text-muted small">Hassle-free refunds</div>
+      </div>
+      <div class="col-md-3">
+        <i class="bi bi-headset fs-3 mb-2" style="color: var(--text-main);"></i>
+        <div class="fw-semibold">24/7 Priority Support</div>
+        <div class="text-muted small">Always here to help you</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

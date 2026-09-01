@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Help Center &amp; FAQs — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 px-lg-5 py-5">
+  
+  <!-- Hero Section -->
+  <div class="row justify-content-center text-center mb-5">
+    <div class="col-lg-8">
+      <h1 class="fw-bold display-6 mb-2">How can we help you today?</h1>
+      <p class="text-muted">Find answers to frequently asked questions about orders, payments, deliveries, and returns.</p>
+    </div>
+  </div>
+
+  <div class="row g-4 justify-content-center">
+    
+    <!-- Left Column: FAQ Accordion -->
+    <div class="col-lg-8">
+      
+      <div class="accordion" id="helpFaqAccordion">
+        
+        <!-- FAQ 1 -->
+        <div class="accordion-item border rounded-3 mb-3 shadow-sm" style="background: var(--bg-surface);">
+          <h2 class="accordion-header" id="headingOne">
+            <button class="accordion-button fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+              <i class="bi bi-box-seam me-2 text-dark"></i> How do I track my order?
+            </button>
+          </h2>
+          <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#helpFaqAccordion">
+            <div class="accordion-body text-muted small">
+              You can track your order in real-time by visiting the <strong>My Orders</strong> section in your customer portal. Click on any active order to view the full 5-stage shipment timeline with live courier updates.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="accordion-item border rounded-3 mb-3 shadow-sm" style="background: var(--bg-surface);">
+          <h2 class="accordion-header" id="headingTwo">
+            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+              <i class="bi bi-arrow-counterclockwise me-2 text-dark"></i> What is the return and refund policy?
+            </button>
+          </h2>
+          <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#helpFaqAccordion">
+            <div class="accordion-body text-muted small">
+              QuickCart provides an easy 7-day hassle-free return window for all verified purchases. Items must be in original condition with tags and packaging intact. Refunds are initiated to your original payment method within 24 hours of pickup.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="accordion-item border rounded-3 mb-3 shadow-sm" style="background: var(--bg-surface);">
+          <h2 class="accordion-header" id="headingThree">
+            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+              <i class="bi bi-credit-card me-2 text-dark"></i> What payment methods are supported?
+            </button>
+          </h2>
+          <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#helpFaqAccordion">
+            <div class="accordion-body text-muted small">
+              We accept Credit &amp; Debit Cards (Visa, Mastercard, RuPay), UPI QR &amp; VPA (Google Pay, PhonePe, Paytm), Net Banking across 40+ banks, and Cash on Delivery (COD).
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="accordion-item border rounded-3 mb-3 shadow-sm" style="background: var(--bg-surface);">
+          <h2 class="accordion-header" id="headingFour">
+            <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+              <i class="bi bi-shield-check me-2 text-dark"></i> How does the AI Trust Score work?
+            </button>
+          </h2>
+          <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#helpFaqAccordion">
+            <div class="accordion-body text-muted small">
+              Our AI review classifier automatically scrubs suspicious bot submissions and repetitive spam. The certified Trust Score is calculated using only authentic reviews from verified buyers.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Contact Support Banner -->
+      <div class="card border p-4 rounded-4 mt-4 text-center" style="background: var(--bg-surface);">
+        <h5 class="fw-bold mb-1">Still need help?</h5>
+        <p class="text-muted small mb-3">Our dedicated customer support team is available 24/7 to assist you.</p>
+        <div>
+          <a href="{% url 'support:contact' %}" class="btn btn-qc-primary px-4 py-2">
+            <i class="bi bi-chat-dots me-1"></i> Contact Support Team
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

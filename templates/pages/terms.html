@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Terms of Service &amp; Privacy Policy — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 px-lg-5 py-5">
+  
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+      
+      <div class="mb-4">
+        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 mb-2 small text-uppercase">Legal &amp; Policy</span>
+        <h1 class="fw-bold fs-2 mb-1">Terms of Service &amp; Buyer Protection</h1>
+        <p class="text-muted small">Last updated: September 1, 2026</p>
+      </div>
+
+      <div class="card border p-4 p-md-5 rounded-4 shadow-sm" style="background: var(--bg-surface);">
+        
+        <h5 class="fw-bold mb-3"><i class="bi bi-shield-lock me-2 text-dark"></i>1. Buyer Protection &amp; Authenticity Guarantee</h5>
+        <p class="text-muted small mb-4">
+          Every product listed on QuickCart comes with a 100% authenticity guarantee. Verified sellers undergo KYC document verification before catalog approval. If you receive an incorrect, damaged, or counterfeit product, you are eligible for an immediate 100% refund.
+        </p>
+
+        <h5 class="fw-bold mb-3"><i class="bi bi-arrow-counterclockwise me-2 text-dark"></i>2. 7-Day Hassle-Free Returns</h5>
+        <p class="text-muted small mb-4">
+          Items purchased on QuickCart can be returned within 7 calendar days of receipt. Products must be in original condition with tags, warranty cards, and packaging intact. Refunds are initiated to the original payment source within 24 hours of item pickup.
+        </p>
+
+        <h5 class="fw-bold mb-3"><i class="bi bi-lock me-2 text-dark"></i>3. Payment Security &amp; Data Privacy</h5>
+        <p class="text-muted small mb-4">
+          QuickCart complies with global PCI-DSS standards. We never store full credit or debit card CVV numbers on our servers. All transaction payloads are encrypted using 256-bit bank-grade SSL protocols.
+        </p>
+
+        <h5 class="fw-bold mb-3"><i class="bi bi-truck me-2 text-dark"></i>4. Shipping &amp; Delivery SLA</h5>
+        <p class="text-muted small mb-0">
+          Standard express deliveries are fulfilled within 2–4 business days. Real-time multi-stage tracking is provided for every order through your customer dashboard.
+        </p>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

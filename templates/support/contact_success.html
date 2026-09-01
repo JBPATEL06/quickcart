@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Message Sent — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <!-- Centered Success Panel (Flowstep Screen 12 & 14) -->
+  <div class="qc-auth-card text-center" style="max-width: 480px;">
+    
+    <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 bg-success-subtle text-success" style="width: 64px; height: 64px; font-size: 2rem;">
+      <i class="bi bi-check-lg"></i>
+    </div>
+
+    <h2 class="fw-bold fs-3 mb-2">Message sent!</h2>
+    
+    <p class="text-muted small mb-4">
+      Thanks for reaching out to QuickCart. Our dedicated support team will review your message and get back to you by email within one business day.
+    </p>
+
+    <div class="d-flex flex-column gap-2">
+      <a href="{% url 'support:contact' %}" class="btn btn-qc-primary rounded-pill py-2 fw-semibold justify-content-center">
+        Send Another Message
+      </a>
+      <a href="{% url 'help' %}" class="btn btn-qc-outline rounded-pill py-2 fw-semibold justify-content-center">
+        <i class="bi bi-question-circle me-1"></i> Browse FAQs
+      </a>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

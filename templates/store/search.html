@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Search results for "{{ query }}" — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 px-lg-5 py-4">
+
+  <!-- Breadcrumbs & Heading (Flowstep Screen 3) -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 small text-muted">
+          <li class="breadcrumb-item"><a href="{% url 'store:home' %}">Home</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Search</li>
+        </ol>
+      </nav>
+      <div class="d-flex align-items-baseline gap-3 flex-wrap">
+        <h1 class="fw-bold fs-3 mb-0">Search results</h1>
+        <span class="text-muted small">{{ total_count }} product{{ total_count|pluralize }} found {% if query %}for "{{ query }}"{% endif %}</span>
+      </div>
+      {% if parsed_info.clean_query or parsed_info.max_price or parsed_info.min_price %}
+      <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+        <span class="text-muted small">Smart Search:</span>
+        {% if parsed_info.clean_query %}
+        <span class="badge bg-dark text-white rounded-pill px-3 py-1 small"><i class="bi bi-tag me-1"></i> "{{ parsed_info.clean_query }}"</span>
+        {% endif %}
+        {% if parsed_info.max_price %}
+        <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 small"><i class="bi bi-currency-rupee me-1"></i> Max: ₹{{ parsed_info.max_price|floatformat:0 }}</span>
+        {% endif %}
+        {% if parsed_info.min_price %}
+        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 small"><i class="bi bi-currency-rupee me-1"></i> Min: ₹{{ parsed_info.min_price|floatformat:0 }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Sort Dropdown -->
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted small">Sort by</span>
+      <form method="GET" action="{% url 'store:search' %}" class="d-inline" id="sort-form">
+        <input type="hidden" name="q" value="{{ query }}">
+        <select name="sort" class="form-select form-select-sm" style="border-radius: var(--radius-md);" onchange="document.getElementById('sort-form').submit();">
+          <option value="relevance" {% if current_sort == 'relevance' %}selected{% endif %}>Relevance</option>
+          <option value="price_low" {% if current_sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+          <option value="price_high" {% if current_sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+          <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Highest Rated</option>
+          <option value="trust" {% if current_sort == 'trust' %}selected{% endif %}>Trust Score</option>
+        </select>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    
+    <!-- Left Filter Sidebar (Flowstep Screen 3) -->
+    <div class="col-lg-3">
+      <div class="card border p-3" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+        <form method="GET" action="{% url 'store:search' %}">
+          <input type="hidden" name="q" value="{{ query }}">
+          <input type="hidden" name="sort" value="{{ current_sort }}">
+
+          <!-- Category Checkboxes -->
+          <div class="mb-4">
+            <h6 class="fw-bold mb-3 small text-uppercase tracking-wider">Category</h6>
+            
+            <!-- Top 8 Categories -->
+            {% for cat in all_categories|slice:":8" %}
+            <div class="form-check mb-2">
+              <input 
+                class="form-check-input" 
+                type="checkbox" 
+                name="category" 
+                value="{{ cat.slug }}" 
+                id="cat-{{ cat.slug }}"
+                {% if cat.slug in selected_categories %}checked{% endif %}
+              >
+              <label class="form-check-label small" for="cat-{{ cat.slug }}">
+                {{ cat.name }}
+              </label>
+            </div>
+            {% endfor %}
+
+            <!-- Collapsible Remaining Categories -->
+            <div class="collapse" id="moreCategoriesCollapse">
+              {% for cat in all_categories|slice:"8:" %}
+              <div class="form-check mb-2">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  name="category" 
+                  value="{{ cat.slug }}" 
+                  id="cat-{{ cat.slug }}"
+                  {% if cat.slug in selected_categories %}checked{% endif %}
+                >
+                <label class="form-check-label small" for="cat-{{ cat.slug }}">
+                  {{ cat.name }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+
+            <a class="text-decoration-none small text-primary fw-semibold d-inline-flex align-items-center gap-1 mt-1" data-bs-toggle="collapse" href="#moreCategoriesCollapse" role="button" aria-expanded="false">
+              <span>+ Show all 40+ categories</span>
+            </a>
+          </div>
+
+          <hr class="my-3">
+
+          <!-- Price Range Filter -->
+          <div class="mb-4">
+            <h6 class="fw-bold mb-3 small text-uppercase tracking-wider">Price Range (₹)</h6>
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <input type="number" name="min_price" class="form-control form-control-sm" placeholder="Min" value="{{ current_min_price|default:'' }}" min="0">
+              <span class="text-muted small">-</span>
+              <input type="number" name="max_price" class="form-control form-control-sm" placeholder="Max" value="{{ current_max_price|default:'' }}" min="0">
+            </div>
+            <!-- Quick Price Filter Links -->
+            <div class="d-flex flex-column gap-1 small text-muted">
+              <a href="?q={{ query }}&max_price=500" class="text-decoration-none text-muted py-1 hover-text-dark">Under ₹500</a>
+              <a href="?q={{ query }}&min_price=500&max_price=1500" class="text-decoration-none text-muted py-1 hover-text-dark">₹500 — ₹1,500</a>
+              <a href="?q={{ query }}&min_price=1500&max_price=3000" class="text-decoration-none text-muted py-1 hover-text-dark">₹1,500 — ₹3,000</a>
+              <a href="?q={{ query }}&min_price=3000" class="text-decoration-none text-muted py-1 hover-text-dark">Above ₹3,000</a>
+            </div>
+          </div>
+
+          <hr class="my-3">
+
+          <!-- Rating Filter -->
+          <div class="mb-4">
+            <h6 class="fw-bold mb-3 small text-uppercase tracking-wider">Customer Rating</h6>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="rating" value="4.5" id="rating-45">
+              <label class="form-check-label small" for="rating-45">
+                <i class="bi bi-star-fill text-warning"></i> 4.5 &amp; above
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="rating" value="4.0" id="rating-40">
+              <label class="form-check-label small" for="rating-40">
+                <i class="bi bi-star-fill text-warning"></i> 4.0 &amp; above
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="rating" value="3.5" id="rating-35">
+              <label class="form-check-label small" for="rating-35">
+                <i class="bi bi-star-fill text-warning"></i> 3.5 &amp; above
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-qc-primary w-100 btn-sm">Apply Filters</button>
+        </form>
+
+      </div>
+    </div>
+
+    <!-- Right Column: Product Results -->
+    <div class="col-lg-9">
+      {% if products %}
+      <div class="row row-cols-1 row-cols-md-3 g-3 mb-4">
+        {% for product in products %}
+        <div class="col">
+          <div class="card border h-100 product-card shadow-sm" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+            <div class="position-relative">
+              <img src="{{ product.main_image }}" class="card-img-top" style="height: 180px; object-fit: cover; border-top-left-radius: var(--radius-xl); border-top-right-radius: var(--radius-xl);" alt="{{ product.name }}">
+              <div class="position-absolute top-0 end-0 p-2 d-flex gap-1">
+                <button class="btn btn-sm btn-light rounded-circle shadow-sm btn-wishlist-toggle" data-product-id="{{ product.id }}" title="Save item">
+                  <i class="bi bi-heart"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="card-body p-3 d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small">{{ product.category.name }}</span>
+                <span class="badge-trust"><i class="bi bi-shield-check"></i> {{ product.trust_score }}%</span>
+              </div>
+              
+              <a href="{% url 'store:product_detail' product.slug %}" class="fw-semibold text-truncate mb-2 text-decoration-none" style="color: var(--text-main);">
+                {{ product.name }}
+              </a>
+
+              <div class="d-flex align-items-center gap-1 text-warning small mb-3">
+                <i class="bi bi-star-fill"></i>
+                <span class="fw-semibold text-dark">{{ product.rating }}</span>
+                <span class="text-muted">({{ product.review_count }})</span>
+              </div>
+
+              <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
+                <div>
+                  <span class="fw-bold fs-5">₹{{ product.price }}</span>
+                  {% if product.original_price %}
+                  <span class="text-muted text-decoration-line-through small ms-1">₹{{ product.original_price }}</span>
+                  {% endif %}
+                </div>
+                <button class="btn btn-sm btn-qc-primary btn-add-cart" data-product-id="{{ product.id }}">
+                  <i class="bi bi-bag-plus"></i> Add
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Numbered Pagination -->
+      {% if page_obj.has_other_pages %}
+      <div class="d-flex justify-content-between align-items-center p-3 border rounded-4 bg-light mb-4 shadow-sm">
+        <span class="small text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }} products</span>
+        <nav aria-label="Catalog pagination">
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query }}&sort={{ current_sort }}&min_price={{ current_min_price }}&max_price={{ current_max_price }}">« Previous</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">« Previous</span></li>
+            {% endif %}
+
+            <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query }}&sort={{ current_sort }}&min_price={{ current_min_price }}&max_price={{ current_max_price }}">Next »</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Next »</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+
+      {% else %}
+      <div class="text-center py-5">
+        <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
+        <h4 class="fw-bold">No products found</h4>
+        <p class="text-muted">Try searching with a different keyword or removing active filters.</p>
+        <a href="{% url 'store:home' %}" class="btn btn-qc-outline mt-2">Browse All Products</a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

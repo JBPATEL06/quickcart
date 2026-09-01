@@ -1,0 +1,198 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Customer Inquiries &amp; Support — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+  
+  <!-- Header Title & Controls -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
+    <div>
+      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+        <span>Admin panel</span>
+        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+        <span>Support Inquiries</span>
+      </div>
+      <h1 class="fw-bold fs-3 mb-1">Customer Support ({{ total_count }})</h1>
+      <p class="text-muted small mb-0">Review and resolve customer inquiries and support tickets</p>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'admin_support' %}?status=all" class="qc-pill-btn {% if current_status == 'all' or not current_status %}active{% endif %}">
+        All Messages
+      </a>
+      <a href="{% url 'admin_support' %}?status=pending" class="qc-pill-btn {% if current_status == 'pending' %}active{% endif %}">
+        Pending
+      </a>
+      <a href="{% url 'admin_support' %}?status=resolved" class="qc-pill-btn {% if current_status == 'resolved' %}active{% endif %}">
+        Resolved
+      </a>
+    </div>
+  </div>
+
+  <!-- Support Inquiries Table -->
+  <div class="card border shadow-sm mb-4" style="border-radius: var(--radius-xl); background: var(--bg-surface); overflow: hidden;">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light small text-muted border-bottom">
+          <tr>
+            <th class="ps-4 py-3">Customer</th>
+            <th class="py-3">Order Number</th>
+            <th class="py-3">Message Preview</th>
+            <th class="py-3">Date</th>
+            <th class="py-3">Status</th>
+            <th class="text-end pe-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="small">
+          {% for msg in messages_list %}
+          <tr>
+            <td class="ps-4 py-3">
+              <div class="fw-semibold">{{ msg.name }}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">{{ msg.email }}</div>
+            </td>
+            <td class="py-3">
+              {% if msg.order_number %}
+              <span class="badge bg-dark text-white rounded-pill px-2 py-1 font-monospace">#{{ msg.order_number }}</span>
+              {% else %}
+              <span class="text-muted">General Inquiry</span>
+              {% endif %}
+            </td>
+            <td class="py-3" style="max-width: 320px;">
+              <span class="text-truncate d-inline-block" style="max-width: 300px;">{{ msg.message }}</span>
+            </td>
+            <td class="py-3 text-muted">
+              {{ msg.created_at|date:"M d, Y h:i A" }}
+            </td>
+            <td class="py-3">
+              {% if msg.is_resolved %}
+              <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Resolved</span>
+              {% else %}
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3 py-1">Pending Review</span>
+              {% endif %}
+            </td>
+            <td class="text-end pe-4 py-3">
+              <div class="d-inline-flex gap-2">
+                <button 
+                  class="btn btn-qc-outline btn-sm py-1 px-2 btn-view-msg"
+                  data-bs-toggle="modal"
+                  data-bs-target="#viewMessageModal"
+                  data-name="{{ msg.name }}"
+                  data-email="{{ msg.email }}"
+                  data-order="{{ msg.order_number|default:'General Inquiry' }}"
+                  data-date="{{ msg.created_at|date:'F d, Y h:i A' }}"
+                  data-message="{{ msg.message }}"
+                  data-id="{{ msg.id }}"
+                  data-resolved="{{ msg.is_resolved|yesno:'true,false' }}"
+                >
+                  View
+                </button>
+                {% if not msg.is_resolved %}
+                <form method="POST" action="{% url 'admin_resolve_support' msg.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-qc-primary btn-sm py-1 px-2">
+                    <i class="bi bi-check2"></i> Resolve
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">
+              <i class="bi bi-chat-heart fs-2 d-block mb-2 text-muted"></i>
+              No customer inquiries found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Numbered Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light">
+      <span class="small text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }} inquiries</span>
+      <nav aria-label="Support pagination">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ current_status }}">« Previous</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">« Previous</span></li>
+          {% endif %}
+
+          <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ current_status }}">Next »</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">Next »</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- View Message Modal -->
+  <div class="modal fade" id="viewMessageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold fs-6">Customer Inquiry Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-dark text-white fw-bold" style="width: 44px; height: 44px;">
+              <i class="bi bi-person"></i>
+            </div>
+            <div>
+              <div class="fw-bold fs-6" id="modal-msg-name">Maya Thompson</div>
+              <a href="#" class="text-muted small text-decoration-none" id="modal-msg-email">maya@example.com</a>
+            </div>
+          </div>
+
+          <div class="p-3 bg-light rounded-3 mb-3 small">
+            <div class="text-muted mb-1"><strong>Order Reference:</strong> <span id="modal-msg-order">#QC-78495</span></div>
+            <div class="text-muted"><strong>Submitted:</strong> <span id="modal-msg-date">Sep 01, 2026</span></div>
+          </div>
+
+          <label class="form-label small fw-semibold">Customer's Message:</label>
+          <div class="p-3 border rounded-3 bg-body-tertiary small text-muted" id="modal-msg-content" style="white-space: pre-wrap;"></div>
+        </div>
+        <div class="modal-footer border-top d-flex justify-content-between">
+          <a href="#" class="btn btn-qc-outline btn-sm" id="modal-msg-reply">
+            <i class="bi bi-reply me-1"></i> Reply via Email
+          </a>
+          <button type="button" class="btn btn-qc-primary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    $('.btn-view-msg').on('click', function() {
+      const name = $(this).data('name');
+      const email = $(this).data('email');
+      const order = $(this).data('order');
+      const date = $(this).data('date');
+      const message = $(this).data('message');
+
+      $('#modal-msg-name').text(name);
+      $('#modal-msg-email').text(email).attr('href', 'mailto:' + email);
+      $('#modal-msg-order').text(order);
+      $('#modal-msg-date').text(date);
+      $('#modal-msg-content').text(message);
+      $('#modal-msg-reply').attr('href', `mailto:${email}?subject=QuickCart Support Inquiry ${order}&body=Hi ${name},\n\nRegarding your inquiry: "${message}"\n\n`);
+    });
+  });
+</script>
+{% endblock %}

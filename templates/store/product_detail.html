@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 px-lg-5 py-4" style="max-width: 1140px; margin: 0 auto;">
+
+  <!-- Breadcrumb Navigation (Flowstep Screen 5) -->
+  <nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb small text-muted">
+      <li class="breadcrumb-item"><a href="{% url 'store:home' %}">Home</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'store:category' product.category.slug %}">{{ product.category.name }}</a></li>
+      <li class="breadcrumb-item active text-truncate" aria-current="page" style="max-width: 300px;">{{ product.name }}</li>
+    </ol>
+  </nav>
+
+  <!-- Product Main Top Section (Gallery + Purchase Info) -->
+  <div class="row g-4 g-lg-5 mb-5">
+    
+    <!-- Image Gallery -->
+    <div class="col-lg-6">
+      <div class="d-flex flex-column-reverse flex-md-row gap-3">
+        
+        <!-- Thumbnail Strip -->
+        <div class="d-flex flex-md-column gap-2" style="width: 80px;">
+          <img src="{{ product.main_image }}" class="rounded-3 border border-2 border-dark cursor-pointer gallery-thumb" style="width: 72px; height: 72px; object-fit: cover;" alt="Thumbnail 1">
+          {% for img in images %}
+          <img src="{{ img.image_url }}" class="rounded-3 border cursor-pointer gallery-thumb" style="width: 72px; height: 72px; object-fit: cover;" alt="Thumbnail">
+          {% endfor %}
+        </div>
+
+        <!-- Main Display Image -->
+        <div class="flex-grow-1 position-relative rounded-4 overflow-hidden border" style="background: var(--bg-muted); height: 420px;">
+          <img src="{{ product.main_image }}" id="main-product-image" class="w-100 h-100 object-fit-cover" alt="{{ product.name }}">
+          <button class="qc-card-heart btn-wishlist-toggle" data-product-id="{{ product.id }}" style="top: 16px; right: 16px;">
+            <i class="bi bi-heart"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Product Info & Buying Actions (Flowstep Screen 5) -->
+    <div class="col-lg-6 d-flex flex-column">
+      
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-secondary-subtle text-secondary px-3 py-1 rounded-pill small">{{ product.brand }}</span>
+        <span class="badge-trust"><i class="bi bi-shield-check"></i> {{ product.trust_badge_label }}</span>
+      </div>
+
+      <h1 class="fw-bold fs-3 mb-2" style="color: var(--text-main);">{{ product.name }}</h1>
+      <p class="text-muted small mb-3">{{ product.tagline }}</p>
+
+      <!-- Rating & Reviews Counter -->
+      <div class="d-flex align-items-center gap-2 mb-4">
+        <div class="d-flex text-warning small">
+          <i class="bi bi-star-fill"></i>
+          <i class="bi bi-star-fill"></i>
+          <i class="bi bi-star-fill"></i>
+          <i class="bi bi-star-fill"></i>
+          <i class="bi bi-star-half"></i>
+        </div>
+        <span class="fw-bold">{{ product.rating }}</span>
+        <span class="text-muted small">({{ product.review_count }} verified reviews)</span>
+      </div>
+
+      <!-- Price Box -->
+      <div class="d-flex align-items-baseline gap-3 mb-4">
+        <span class="display-6 fw-bold">₹{{ product.price }}</span>
+        {% if product.original_price %}
+        <span class="text-muted text-decoration-line-through fs-5">₹{{ product.original_price }}</span>
+        <span class="badge bg-success-subtle text-success rounded-pill fw-semibold">{{ product.discount_percent }}% OFF</span>
+        {% endif %}
+      </div>
+
+      <!-- Trust Score Card (Flowstep Screen 5) -->
+      <div class="p-3 rounded-3 mb-4 d-flex align-items-center gap-3" style="background: var(--bg-muted); border: 1px solid var(--border-color);">
+        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 1.25rem; background-color: var(--primary); color: var(--primary-text);">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <div>
+          <div class="fw-bold small">Trust Score {{ product.trust_score }} / 100</div>
+          <div class="text-muted" style="font-size: 0.8rem;">Highly rated for quality, seller authenticity, and genuine reviews.</div>
+        </div>
+      </div>
+
+      <!-- Delivery and Returns Badges -->
+      <div class="d-flex align-items-center gap-4 text-muted small mb-4">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-truck fs-5" style="color: var(--text-main);"></i>
+          <span>Free delivery within 3-4 days</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-arrow-counterclockwise fs-5" style="color: var(--text-main);"></i>
+          <span>7-day easy returns</span>
+        </div>
+      </div>
+
+      <!-- CTAs (Add to Cart & Buy Now) -->
+      <div class="row g-3 mt-auto">
+        <div class="col-6">
+          <button class="btn btn-qc-outline w-100 py-3 rounded-3 fw-semibold btn-add-cart d-flex align-items-center justify-content-center gap-2" data-product-id="{{ product.id }}">
+            <i class="bi bi-bag"></i> Add to Cart
+          </button>
+        </div>
+        <div class="col-6">
+          {% if user.is_authenticated %}
+          <form method="POST" action="{% url 'cart:api_add' %}" id="buy-now-form">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <input type="hidden" name="quantity" value="1">
+            <button type="submit" class="btn btn-qc-primary w-100 py-3 rounded-3 fw-semibold d-flex align-items-center justify-content-center gap-2">
+              <i class="bi bi-lightning-charge"></i> Buy Now
+            </button>
+          </form>
+          {% else %}
+          <a href="{% url 'accounts:login' %}?next={% url 'store:product_detail' product.slug %}" class="btn btn-qc-primary w-100 py-3 rounded-3 fw-semibold d-flex align-items-center justify-content-center gap-2">
+            <i class="bi bi-lightning-charge"></i> Buy Now
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Tabs: Description, Specifications, Reviews (Screen 5) -->
+  <div class="card border mb-5" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <div class="card-header border-bottom bg-transparent p-3">
+      <ul class="nav nav-pills card-header-pills gap-2" id="productTabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active rounded-pill px-4" data-bs-toggle="tab" data-bs-target="#tab-desc" type="button">Description</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link rounded-pill px-4" data-bs-toggle="tab" data-bs-target="#tab-specs" type="button">Specifications</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link rounded-pill px-4" data-bs-toggle="tab" data-bs-target="#tab-reviews" type="button">
+            Reviews <span class="badge bg-secondary ms-1">{{ product.review_count }}</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+    
+    <div class="card-body p-4">
+      <div class="tab-content">
+        
+        <!-- Description -->
+        <div class="tab-pane fade show active" id="tab-desc">
+          <p class="lead fs-6 text-muted mb-0">{{ product.description }}</p>
+        </div>
+
+        <!-- Specifications -->
+        <div class="tab-pane fade" id="tab-specs">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="p-3 rounded-3" style="background: var(--bg-muted);">
+                <div class="text-muted small">Battery life</div>
+                <div class="fw-semibold mt-1">{{ product.battery_life }}</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-3 rounded-3" style="background: var(--bg-muted);">
+                <div class="text-muted small">Connectivity</div>
+                <div class="fw-semibold mt-1">{{ product.connectivity }}</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-3 rounded-3" style="background: var(--bg-muted);">
+                <div class="text-muted small">Warranty</div>
+                <div class="fw-semibold mt-1">{{ product.warranty }}</div>
+              </div>
+            </div>
+            {% for key, val in product.specifications.items %}
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between p-2 border-bottom small">
+                <span class="text-muted">{{ key }}</span>
+                <span class="fw-semibold">{{ val }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Reviews -->
+        <div class="tab-pane fade" id="tab-reviews">
+          <div class="row g-3">
+            {% for rev in reviews %}
+            <div class="col-md-6">
+              <div class="card border p-3 h-100" style="border-radius: var(--radius-md);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-semibold small">{{ rev.title }}</span>
+                  <span class="badge-trust"><i class="bi bi-shield-check"></i> {{ rev.trust_tag }}</span>
+                </div>
+                <div class="d-flex text-warning small mb-2">
+                  {% for i in "12345" %}
+                  <i class="bi bi-star-fill"></i>
+                  {% endfor %}
+                </div>
+                <p class="text-muted small mb-2">“{{ rev.content }}”</p>
+                <div class="text-muted" style="font-size: 0.75rem;">By {{ rev.author_name }} · Verified Purchase</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Nearby Sellers & Location Widget (Screen 5) -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-5">
+      <div class="card border p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-muted);">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-geo-alt fs-5 text-dark"></i>
+          <h5 class="fw-bold mb-0 fs-6">Nearby Sellers</h5>
+        </div>
+        <p class="text-muted small mb-3">Allow location access to see in-stock availability and fastest local courier dispatch near you.</p>
+        <button class="btn btn-qc-outline btn-sm rounded-pill d-inline-flex align-items-center gap-2" onclick="navigator.geolocation.getCurrentPosition(() => showToast('Location detected: Koramangala Hub (Fast Dispatch available)'), () => showToast('Location access denied'));">
+          <i class="bi bi-crosshair"></i> Detect Location
+        </button>
+      </div>
+    </div>
+    <div class="col-md-7">
+      <div class="card border p-4 h-100 d-flex flex-row align-items-center justify-content-between" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div>
+          <h5 class="fw-bold mb-1 fs-6">Free Shipping on Orders Over ₹999</h5>
+          <p class="text-muted small mb-0">Secure payments · Easy 7-day returns · 100% Genuine brand products</p>
+        </div>
+        <i class="bi bi-patch-check fs-1 text-success"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Related Products (You May Also Like) -->
+  <div class="mb-5">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+      <div>
+        <h3 class="fw-bold fs-5 mb-1">You May Also Like</h3>
+        <p class="text-muted small mb-0">Popular picks from the {{ product.category.name }} collection</p>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      {% for rel in related_products %}
+      <div class="col-6 col-md-3" data-product-id="{{ rel.id }}" data-product-image="{{ rel.main_image }}">
+        <div class="qc-product-card">
+          <div class="qc-card-img-wrap">
+            <a href="{% url 'store:product_detail' rel.slug %}">
+              <img src="{{ rel.main_image }}" class="qc-card-img" alt="{{ rel.name }}">
+            </a>
+            <button class="qc-card-heart btn-wishlist-toggle" data-product-id="{{ rel.id }}"><i class="bi bi-heart"></i></button>
+          </div>
+          <a href="{% url 'store:product_detail' rel.slug %}" class="fw-semibold text-truncate small mb-1 text-decoration-none" style="color: var(--text-main);">
+            {{ rel.name }}
+          </a>
+          <div class="fw-bold mt-auto">₹{{ rel.price }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    $('.gallery-thumb').on('click', function() {
+      const src = $(this).attr('src');
+      $('#main-product-image').attr('src', src);
+      $('.gallery-thumb').removeClass('border-dark border-2');
+      $(this).addClass('border-dark border-2');
+    });
+  });
+</script>
+{% endblock %}

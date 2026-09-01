@@ -1,0 +1,201 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Orders Management — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+  
+  <!-- Header Title & Controls (Flowstep Screen 22) -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
+    <div>
+      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+        <span>Admin panel</span>
+        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+        <span>Orders</span>
+      </div>
+      <h1 class="fw-bold fs-3 mb-1">Orders</h1>
+      <p class="text-muted small mb-0">Manage and track all customer orders and shipments</p>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      <form method="GET" class="position-relative">
+        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+        <input type="text" name="q" value="{{ search_query|default:'' }}" id="admin-orders-search" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search order ID, customer...">
+      </form>
+    </div>
+  </div>
+
+  <!-- Status Filter Tabs (Flowstep Screen 22) -->
+  <div class="d-flex flex-wrap gap-2 mb-4 p-1 rounded-pill" style="background: var(--bg-muted); width: fit-content;">
+    <a class="qc-pill-btn {% if current_status == 'all' or not current_status %}active{% endif %}" href="{% url 'admin_orders' %}?status=all">All ({{ orders|length }})</a>
+    <a class="qc-pill-btn {% if current_status == 'placed' %}active{% endif %}" href="{% url 'admin_orders' %}?status=placed">Pending</a>
+    <a class="qc-pill-btn {% if current_status == 'shipped' %}active{% endif %}" href="{% url 'admin_orders' %}?status=shipped">Shipped</a>
+    <a class="qc-pill-btn {% if current_status == 'delivered' %}active{% endif %}" href="{% url 'admin_orders' %}?status=delivered">Delivered</a>
+    <a class="qc-pill-btn {% if current_status == 'cancelled' %}active{% endif %}" href="{% url 'admin_orders' %}?status=cancelled">Cancelled</a>
+  </div>
+
+  <!-- Orders Data Table (Flowstep Screen 22) -->
+  <div class="card border shadow-sm" style="border-radius: var(--radius-xl); background: var(--bg-surface); overflow: visible;">
+    <div class="table-responsive" style="min-height: 380px; overflow: visible;">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light small text-muted border-bottom">
+          <tr>
+            <th class="ps-4 py-3">Order ID</th>
+            <th class="py-3">Customer</th>
+            <th class="py-3">Date</th>
+            <th class="py-3">Items</th>
+            <th class="py-3">Total Amount</th>
+            <th class="py-3">Payment</th>
+            <th class="py-3">Status</th>
+            <th class="text-end pe-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="small">
+          {% for ord in orders %}
+          <tr class="admin-order-row">
+            <td class="ps-4 py-3 fw-bold">
+              #{{ ord.order_number }}
+            </td>
+            <td class="py-3">
+              <div class="fw-semibold">{{ ord.recipient_name }}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">{{ ord.user.email }}</div>
+            </td>
+            <td class="py-3 text-muted">
+              {{ ord.created_at|date:"M d, Y" }}
+            </td>
+            <td class="py-3">
+              {{ ord.total_items }} items
+            </td>
+            <td class="py-3 fw-bold">
+              ₹{{ ord.total_amount }}
+            </td>
+            <td class="py-3 text-muted">
+              <span class="text-truncate d-inline-block" style="max-width: 140px;">{{ ord.payment_method }}</span>
+            </td>
+            <td class="py-3">
+              {% if ord.status == 'delivered' %}
+              <span class="badge-order-delivered"><i class="bi bi-check-circle-fill me-1"></i> Delivered</span>
+              {% elif ord.status in 'shipped in_transit out_for_delivery' %}
+              <span class="badge-order-transit"><i class="bi bi-truck me-1"></i> {{ ord.get_status_display }}</span>
+              {% elif ord.status == 'cancelled' %}
+              <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1">Cancelled</span>
+              {% else %}
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3 py-1">Pending</span>
+              {% endif %}
+            </td>
+            <td class="text-end pe-4 py-3">
+              <div class="d-inline-flex gap-2">
+                <a href="{% url 'admin_order_detail' ord.order_number %}" class="btn btn-qc-outline btn-sm py-1 px-2" title="View Details">
+                  View
+                </a>
+                <div class="btn-group dropstart">
+                  <button class="btn btn-qc-primary btn-sm py-1 px-2 dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false">
+                    Update
+                  </button>
+                  <ul class="dropdown-menu shadow-lg small border p-2" style="z-index: 1060; min-width: 200px;">
+                    <li><h6 class="dropdown-header small text-uppercase text-muted px-2 py-1">Advance Status</h6></li>
+                    <li>
+                      <form method="POST" action="{% url 'admin_update_order_status' ord.order_number %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="confirmed">
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                          <i class="bi bi-check2-circle text-dark"></i> Accept &amp; Confirm
+                        </button>
+                      </form>
+                    </li>
+                    <li>
+                      <form method="POST" action="{% url 'admin_update_order_status' ord.order_number %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="shipped">
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                          <i class="bi bi-box-seam text-dark"></i> Mark as Shipped
+                        </button>
+                      </form>
+                    </li>
+                    <li>
+                      <form method="POST" action="{% url 'admin_update_order_status' ord.order_number %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="out_for_delivery">
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                          <i class="bi bi-truck text-warning"></i> Out for Delivery
+                        </button>
+                      </form>
+                    </li>
+                    <li>
+                      <form method="POST" action="{% url 'admin_update_order_status' ord.order_number %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="delivered">
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-success">
+                          <i class="bi bi-check-circle-fill"></i> Mark as Delivered
+                        </button>
+                      </form>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <form method="POST" action="{% url 'admin_update_order_status' ord.order_number %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="cancelled">
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger">
+                          <i class="bi bi-x-circle"></i> Cancel Order
+                        </button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center py-5 text-muted">
+              <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+              No orders found matching this filter.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Numbered Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light">
+      <span class="small text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }} orders</span>
+      <nav aria-label="Orders pagination">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ current_status }}&q={{ search_query }}">« Previous</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">« Previous</span></li>
+          {% endif %}
+
+          <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ current_status }}&q={{ search_query }}">Next »</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">Next »</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    $('#admin-orders-search').on('input', function() {
+      const q = $(this).val().toLowerCase();
+      $('.admin-order-row').each(function() {
+        const text = $(this).text().toLowerCase();
+        $(this).toggle(text.includes(q));
+      });
+    });
+  });
+</script>
+{% endblock %}

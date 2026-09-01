@@ -1,0 +1,218 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Order #{{ order.order_number }} — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid p-0">
+  
+  <!-- Back Button & Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+      <a href="{% url 'admin_orders' %}" class="btn btn-qc-outline btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to Orders
+      </a>
+      <div>
+        <h1 class="fw-bold fs-3 mb-0">Order #{{ order.order_number }}</h1>
+        <span class="text-muted small">Placed on {{ order.created_at|date:"F d, Y at h:i A" }}</span>
+      </div>
+    </div>
+
+    <!-- Status Badge & Action -->
+    <div class="d-flex align-items-center gap-2">
+      {% if order.status == 'delivered' %}
+      <span class="badge-order-delivered fs-6"><i class="bi bi-check-circle-fill me-1"></i> Delivered</span>
+      {% elif order.status in 'shipped in_transit out_for_delivery' %}
+      <span class="badge-order-transit fs-6"><i class="bi bi-truck me-1"></i> {{ order.get_status_display }}</span>
+      {% elif order.status == 'cancelled' %}
+      <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2 fs-6">Cancelled</span>
+      {% else %}
+      <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3 py-2 fs-6">Pending / Placed</span>
+      {% endif %}
+
+      <div class="btn-group dropstart">
+        <button class="btn btn-qc-primary btn-sm py-2 px-3 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          Update Status
+        </button>
+        <ul class="dropdown-menu shadow-lg small border p-2" style="z-index: 1060; min-width: 200px;">
+          <li><h6 class="dropdown-header small text-uppercase text-muted px-2 py-1">Advance Status</h6></li>
+          <li>
+            <form method="POST" action="{% url 'admin_update_order_status' order.order_number %}">
+              {% csrf_token %}
+              <input type="hidden" name="status" value="confirmed">
+              <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                <i class="bi bi-check2-circle text-dark"></i> Accept &amp; Confirm
+              </button>
+            </form>
+          </li>
+          <li>
+            <form method="POST" action="{% url 'admin_update_order_status' order.order_number %}">
+              {% csrf_token %}
+              <input type="hidden" name="status" value="shipped">
+              <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                <i class="bi bi-box-seam text-dark"></i> Mark as Shipped
+              </button>
+            </form>
+          </li>
+          <li>
+            <form method="POST" action="{% url 'admin_update_order_status' order.order_number %}">
+              {% csrf_token %}
+              <input type="hidden" name="status" value="out_for_delivery">
+              <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                <i class="bi bi-truck text-warning"></i> Out for Delivery
+              </button>
+            </form>
+          </li>
+          <li>
+            <form method="POST" action="{% url 'admin_update_order_status' order.order_number %}">
+              {% csrf_token %}
+              <input type="hidden" name="status" value="delivered">
+              <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-success">
+                <i class="bi bi-check-circle-fill"></i> Mark as Delivered
+              </button>
+            </form>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <form method="POST" action="{% url 'admin_update_order_status' order.order_number %}">
+              {% csrf_token %}
+              <input type="hidden" name="status" value="cancelled">
+              <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger">
+                <i class="bi bi-x-circle"></i> Cancel Order
+              </button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    
+    <!-- Left Column: Line Items & Tracking Timeline -->
+    <div class="col-lg-8">
+      
+      <!-- Ordered Items Table -->
+      <div class="card border shadow-sm p-4 mb-4 rounded-4" style="background: var(--bg-surface);">
+        <h5 class="fw-bold mb-3">Ordered Products ({{ order.items.count }} items)</h5>
+        
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead class="bg-light small text-muted">
+              <tr>
+                <th>Product</th>
+                <th class="text-center">Price</th>
+                <th class="text-center">Qty</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in order.items.all %}
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-3">
+                    <img src="{{ item.image_url }}" alt="{{ item.product_name }}" class="rounded-3 border" style="width: 52px; height: 52px; object-fit: cover;">
+                    <div>
+                      <div class="fw-semibold small">{{ item.product_name }}</div>
+                      <span class="text-muted" style="font-size: 0.75rem;">SKU: {{ item.product.slug|default:'QC-PROD' }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="text-center fw-semibold small">₹{{ item.price }}</td>
+                <td class="text-center small">{{ item.quantity }}</td>
+                <td class="text-end fw-bold small">₹{{ item.total_price }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Live Tracking Timeline Stepper -->
+      <div class="card border shadow-sm p-4 rounded-4" style="background: var(--bg-surface);">
+        <h5 class="fw-bold mb-3">Fulfillment &amp; Delivery Timeline</h5>
+        
+        <div class="d-flex flex-column gap-3">
+          {% for ev in order.tracking_events.all %}
+          <div class="d-flex gap-3 align-items-start">
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-dark text-white flex-shrink-0" style="width: 32px; height: 32px; font-size: 0.8rem;">
+              <i class="bi bi-check-lg"></i>
+            </div>
+            <div>
+              <div class="fw-semibold small">{{ ev.title }}</div>
+              <div class="text-muted small">{{ ev.description }}</div>
+              <div class="text-muted" style="font-size: 0.72rem;">{{ ev.location }} • {{ ev.timestamp|date:"M d, Y h:i A" }}</div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="text-muted small">No tracking events recorded yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Customer & Financial Summary -->
+    <div class="col-lg-4">
+      
+      <!-- Customer Information Card -->
+      <div class="card border shadow-sm p-4 mb-4 rounded-4" style="background: var(--bg-surface);">
+        <h5 class="fw-bold mb-3">Customer Information</h5>
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-circle d-flex align-items-center justify-content-center bg-light text-dark fw-bold" style="width: 44px; height: 44px;">
+            {{ order.recipient_name|slice:":2"|upper }}
+          </div>
+          <div>
+            <div class="fw-bold">{{ order.recipient_name }}</div>
+            <div class="text-muted small">{{ order.user.email|default:'Guest Buyer' }}</div>
+          </div>
+        </div>
+        <div class="small text-muted mb-2"><i class="bi bi-telephone me-2"></i>{{ order.phone }}</div>
+        <div class="small text-muted"><i class="bi bi-geo-alt me-2"></i>{{ order.shipping_address }}</div>
+      </div>
+
+      <!-- Financial Breakdown Card -->
+      <div class="card border shadow-sm p-4 rounded-4" style="background: var(--bg-surface);">
+        <h5 class="fw-bold mb-3">Financial Breakdown</h5>
+        
+        <div class="d-flex justify-content-between mb-2 small">
+          <span class="text-muted">Subtotal</span>
+          <span class="fw-semibold">₹{{ order.subtotal }}</span>
+        </div>
+
+        {% if order.discount_amount and order.discount_amount > 0 %}
+        <div class="d-flex justify-content-between mb-2 small text-success">
+          <span>Discount ({{ order.promo_code|default:'PROMO' }})</span>
+          <span class="fw-semibold">-₹{{ order.discount_amount }}</span>
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between mb-2 small">
+          <span class="text-muted">Shipping Fee</span>
+          <span class="fw-semibold">{% if order.shipping_fee == 0 %}FREE{% else %}₹{{ order.shipping_fee }}{% endif %}</span>
+        </div>
+
+        <div class="d-flex justify-content-between mb-3 small">
+          <span class="text-muted">Estimated Tax</span>
+          <span class="fw-semibold">₹{{ order.tax }}</span>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="d-flex justify-content-between mb-3">
+          <span class="fw-bold">Total Charged</span>
+          <span class="fw-bold fs-5 text-dark">₹{{ order.total_amount }}</span>
+        </div>
+
+        <div class="p-3 bg-light rounded-3 small">
+          <div class="text-muted" style="font-size: 0.75rem;">Payment Method:</div>
+          <div class="fw-semibold">{{ order.payment_method }}</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

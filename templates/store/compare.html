@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Compare Products — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 px-lg-5 py-4">
+
+  <!-- Heading -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="fw-bold fs-3 mb-1">Product Comparison</h1>
+      <p class="text-muted small mb-0">Compare specifications and trust metrics side by side</p>
+    </div>
+    <a href="{% url 'store:search' %}" class="btn btn-qc-outline btn-sm">
+      <i class="bi bi-plus-lg"></i> Add More Products
+    </a>
+  </div>
+
+  {% if products %}
+  <div class="card border shadow-sm overflow-hidden" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle mb-0" style="border-color: var(--border-color);">
+        
+        <!-- Product Header Cards Row -->
+        <thead class="bg-light">
+          <tr>
+            <th style="width: 220px; background: var(--bg-muted);" class="p-3">Attributes</th>
+            {% for product in products %}
+            <th class="p-3 text-center" style="min-width: 220px;">
+              <div class="position-relative mb-2">
+                <img src="{{ product.main_image }}" class="rounded-3" style="width: 120px; height: 120px; object-fit: cover;" alt="{{ product.name }}">
+                <button class="btn btn-sm btn-light rounded-circle position-absolute top-0 end-0 shadow-sm btn-remove-compare" data-id="{{ product.id }}" title="Remove from compare">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+              <div class="fw-semibold small text-truncate mb-2" title="{{ product.name }}">{{ product.name }}</div>
+              <button class="btn btn-sm btn-qc-primary w-100 btn-add-cart" data-product-id="{{ product.id }}">
+                <i class="bi bi-bag-plus"></i> Add to Cart
+              </button>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+
+        <!-- Attributes Matrix (Flowstep Screen 6) -->
+        <tbody>
+          <tr>
+            <td class="fw-semibold bg-light p-3">Price</td>
+            {% for product in products %}
+            <td class="p-3 text-center fw-bold fs-5">₹{{ product.price }}</td>
+            {% endfor %}
+          </tr>
+
+          <tr>
+            <td class="fw-semibold bg-light p-3">Trust Score</td>
+            {% for product in products %}
+            <td class="p-3 text-center">
+              <span class="badge-trust px-3 py-1 fs-6"><i class="bi bi-shield-check"></i> {{ product.trust_score }} / 100</span>
+            </td>
+            {% endfor %}
+          </tr>
+
+          <tr>
+            <td class="fw-semibold bg-light p-3">Customer Rating</td>
+            {% for product in products %}
+            <td class="p-3 text-center">
+              <span class="text-warning fw-semibold"><i class="bi bi-star-fill"></i> {{ product.rating }}</span>
+              <span class="text-muted small">({{ product.review_count }})</span>
+            </td>
+            {% endfor %}
+          </tr>
+
+          <tr>
+            <td class="fw-semibold bg-light p-3">Battery Life</td>
+            {% for product in products %}
+            <td class="p-3 text-center text-muted small">{{ product.battery_life }}</td>
+            {% endfor %}
+          </tr>
+
+          <tr>
+            <td class="fw-semibold bg-light p-3">Connectivity</td>
+            {% for product in products %}
+            <td class="p-3 text-center text-muted small">{{ product.connectivity }}</td>
+            {% endfor %}
+          </tr>
+
+          <tr>
+            <td class="fw-semibold bg-light p-3">Warranty</td>
+            {% for product in products %}
+            <td class="p-3 text-center text-muted small">{{ product.warranty }}</td>
+            {% endfor %}
+          </tr>
+
+          <tr>
+            <td class="fw-semibold bg-light p-3">Stock Status</td>
+            {% for product in products %}
+            <td class="p-3 text-center text-success small fw-semibold">In Stock ({{ product.stock }} units)</td>
+            {% endfor %}
+          </tr>
+        </tbody>
+
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-layout-split fs-1 text-muted mb-3 d-block"></i>
+    <h4 class="fw-bold">No products selected for comparison</h4>
+    <p class="text-muted">Browse our catalog and check "Compare" on 2 or 3 products to compare them side by side.</p>
+    <a href="{% url 'store:search' %}" class="btn btn-qc-primary mt-2">Browse Products</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    $('.btn-remove-compare').on('click', function() {
+      const id = parseInt($(this).data('id'));
+      let comparedIds = JSON.parse(sessionStorage.getItem('qc_compare_ids') || '[]');
+      comparedIds = comparedIds.filter(item => item !== id);
+      sessionStorage.setItem('qc_compare_ids', JSON.stringify(comparedIds));
+      if (comparedIds.length > 0) {
+        window.location.href = `/compare/?ids=${comparedIds.join(',')}`;
+      } else {
+        window.location.href = '/compare/';
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'customer_base.html' %}
+{% load static %}
+
+{% block title %}Help Center — QuickCart{% endblock %}
+
+{% block customer_content %}
+<div>
+  
+  <!-- Heading & Subtitle (Flowstep Screen 19) -->
+  <div class="text-center mb-5">
+    <h1 class="fw-bold fs-3 mb-2">How can we help?</h1>
+    <p class="text-muted small">Search help articles or explore frequently asked questions</p>
+    
+    <!-- Help Search Bar -->
+    <div class="position-relative mx-auto mt-3" style="max-width: 480px;">
+      <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+      <input type="text" id="faq-search" class="form-control rounded-pill ps-5 py-2" placeholder="Search questions (e.g. tracking, refund, delivery)">
+    </div>
+  </div>
+
+  <!-- 3 Topic Cards (Flowstep Screen 19) -->
+  <div class="row g-3 mb-5">
+    <div class="col-md-4">
+      <div class="card border p-4 text-center h-100 shadow-sm" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+        <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 48px; height: 48px; background: var(--bg-muted);">
+          <i class="bi bi-truck fs-5"></i>
+        </div>
+        <h6 class="fw-bold mb-1">Orders &amp; Delivery</h6>
+        <p class="text-muted small mb-0">Track orders, manage delivery addresses, and check estimated dispatch times.</p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border p-4 text-center h-100 shadow-sm" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+        <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 48px; height: 48px; background: var(--bg-muted);">
+          <i class="bi bi-credit-card fs-5"></i>
+        </div>
+        <h6 class="fw-bold mb-1">Payments &amp; Account</h6>
+        <p class="text-muted small mb-0">Payment methods, billing receipts, refunds, and login security credentials.</p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border p-4 text-center h-100 shadow-sm" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+        <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 48px; height: 48px; background: var(--bg-muted);">
+          <i class="bi bi-chat-dots fs-5"></i>
+        </div>
+        <h6 class="fw-bold mb-1">Contact Support</h6>
+        <p class="text-muted small mb-0">Need one-on-one assistance? Reach out directly to our 24/7 support staff.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Frequently Asked Questions Accordion (Flowstep Screen 19) -->
+  <div class="card border shadow-sm p-4 mb-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <h5 class="fw-bold mb-4 fs-6">Frequently Asked Questions</h5>
+
+    <div class="accordion accordion-flush" id="faqAccordion">
+      {% for faq in faqs %}
+      <div class="accordion-item border-bottom faq-item" style="background: transparent;">
+        <h2 class="accordion-header" id="heading-{{ faq.id }}">
+          <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} px-0 py-3 fw-semibold small" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ faq.id }}" style="background: transparent; color: var(--text-main);">
+            {{ faq.question }}
+          </button>
+        </h2>
+        <div id="collapse-{{ faq.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#faqAccordion">
+          <div class="accordion-body px-0 pb-3 text-muted small">
+            {{ faq.answer }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="mt-4 pt-3 text-center border-top">
+      <span class="text-muted small">Still need help?</span>
+      <a href="{% url 'support:contact' %}" class="fw-semibold text-primary ms-1 small">Contact Us</a>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    $('#faq-search').on('input', function() {
+      const q = $(this).val().toLowerCase();
+      $('.faq-item').each(function() {
+        const text = $(this).text().toLowerCase();
+        $(this).toggle(text.includes(q));
+      });
+    });
+  });
+</script>
+{% endblock %}

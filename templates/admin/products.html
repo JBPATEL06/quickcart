@@ -1,0 +1,444 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Product Catalog — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+  
+  <!-- Header Title & Controls (Flowstep Screen 23) -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
+    <div>
+      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+        <span>Admin panel</span>
+        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+        <span>Products</span>
+      </div>
+      <h1 class="fw-bold fs-3 mb-1">Products ({{ total_count }})</h1>
+      <p class="text-muted small mb-0">Manage your product catalog, inventory, categories, and pricing</p>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <form method="GET" class="position-relative">
+        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+        <input type="text" name="q" value="{{ search_query|default:'' }}" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search product name...">
+      </form>
+      
+      <button class="btn btn-qc-outline btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+        <i class="bi bi-folder-plus"></i>
+        <span>Add Category</span>
+      </button>
+
+      <button class="btn btn-qc-primary btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addProductModal">
+        <i class="bi bi-plus-lg"></i>
+        <span>Add Product</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Category Filter Chips (Flowstep Screen 23) -->
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{% url 'admin_products' %}?category=all" class="qc-pill-btn {% if current_category == 'all' or not current_category %}active{% endif %}">
+      All Categories
+    </a>
+    {% for cat in all_categories|slice:":15" %}
+    <a href="{% url 'admin_products' %}?category={{ cat.slug }}" class="qc-pill-btn {% if current_category == cat.slug %}active{% endif %}">
+      {{ cat.name }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Products Catalog Table (Flowstep Screen 23) -->
+  <div class="card border shadow-sm mb-4" style="border-radius: var(--radius-xl); background: var(--bg-surface); overflow: hidden;">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light small text-muted border-bottom">
+          <tr>
+            <th class="ps-4 py-3">Product</th>
+            <th class="py-3">Category</th>
+            <th class="py-3">Price</th>
+            <th class="py-3">Stock Level</th>
+            <th class="py-3">Trust Score</th>
+            <th class="py-3">Status</th>
+            <th class="text-end pe-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="small">
+          {% for prod in products %}
+          <tr class="admin-prod-row">
+            <td class="ps-4 py-3">
+              <div class="d-flex align-items-center gap-3">
+                <img src="{{ prod.main_image }}" class="rounded-3 border" style="width: 44px; height: 44px; object-fit: cover;" alt="{{ prod.name }}">
+                <div>
+                  <a href="{% url 'store:product_detail' prod.slug %}" class="fw-semibold text-decoration-none" style="color: var(--text-main);" target="_blank">
+                    {{ prod.name }}
+                  </a>
+                  <div class="text-muted" style="font-size: 0.75rem;">Brand: {{ prod.brand }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="py-3 text-muted">
+              {{ prod.category.name }}
+            </td>
+            <td class="py-3 fw-bold">
+              ₹{{ prod.price }}
+            </td>
+            <td class="py-3">
+              {{ prod.stock }} units
+            </td>
+            <td class="py-3">
+              <span class="badge-trust"><i class="bi bi-shield-check"></i> {{ prod.trust_score }}%</span>
+            </td>
+            <td class="py-3">
+              {% if prod.stock > 10 %}
+              <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">In Stock</span>
+              {% elif prod.stock > 0 %}
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3 py-1">Low Stock</span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1">Out of Stock</span>
+              {% endif %}
+            </td>
+            <td class="text-end pe-4 py-3">
+              <div class="d-flex justify-content-end gap-2">
+                <button 
+                  class="btn btn-sm btn-light p-1 border btn-view-product" 
+                  data-bs-toggle="modal" 
+                  data-bs-target="#viewProductModal"
+                  data-id="{{ prod.id }}"
+                  data-name="{{ prod.name|escape }}"
+                  data-brand="{{ prod.brand|escape }}"
+                  data-category="{{ prod.category.name|escape }}"
+                  data-price="{{ prod.price }}"
+                  data-stock="{{ prod.stock }}"
+                  data-trust="{{ prod.trust_score }}"
+                  data-rating="{{ prod.rating }}"
+                  data-reviews="{{ prod.review_count }}"
+                  data-image="{{ prod.main_image|escape }}"
+                  data-description="{{ prod.description|linebreaksbr|striptags|escape }}"
+                  title="View Product Details"
+                >
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button 
+                  class="btn btn-sm btn-light p-1 border btn-edit-product" 
+                  data-bs-toggle="modal" 
+                  data-bs-target="#editProductModal"
+                  data-id="{{ prod.id }}"
+                  data-name="{{ prod.name|escape }}"
+                  data-brand="{{ prod.brand|escape }}"
+                  data-category="{{ prod.category.id }}"
+                  data-price="{{ prod.price }}"
+                  data-stock="{{ prod.stock }}"
+                  data-image="{{ prod.main_image|escape }}"
+                  data-description="{{ prod.description|linebreaksbr|striptags|escape }}"
+                  title="Edit Product"
+                >
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <form method="POST" action="{% url 'admin_delete_product' prod.id %}" onsubmit="return confirm('Are you sure you want to delete this product?');" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-light p-1 border text-danger" title="Delete Product">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">No products found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Numbered Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light">
+      <span class="small text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }} products</span>
+      <nav aria-label="Product pagination">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&category={{ current_category }}&q={{ search_query }}">« Previous</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">« Previous</span></li>
+          {% endif %}
+
+          <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&category={{ current_category }}&q={{ search_query }}">Next »</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">Next »</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Add Product Modal -->
+  <div class="modal fade" id="addProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold fs-6">Add New Product to Catalog</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="POST" action="{% url 'admin_products' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="modal-body p-4">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label small fw-semibold">Product Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. AeroSound Studio Elite Headphones" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">Brand</label>
+                <input type="text" name="brand" class="form-control" placeholder="AeroSound" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Category</label>
+                <select name="category_id" class="form-select" required>
+                  {% for cat in all_categories %}
+                  <option value="{{ cat.id }}">{{ cat.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">Price (₹)</label>
+                <input type="number" step="0.01" name="price" class="form-control" placeholder="149.00" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">Stock Units</label>
+                <input type="number" name="stock" class="form-control" value="50" required>
+              </div>
+              
+              <!-- File Upload (Single or Multiple) -->
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Upload Product Images (Single or Multiple)</label>
+                <input type="file" name="product_images" multiple accept="image/*" class="form-control">
+                <span class="text-muted small">Choose 1 or more photos. The first image will be set as the main thumbnail.</span>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Or Image URL (Fallback)</label>
+                <input type="url" name="main_image" class="form-control" placeholder="https://images.unsplash.com/photo-...">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Description</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="Detailed product specifications..." required></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-top">
+            <button type="button" class="btn btn-qc-outline btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-qc-primary btn-sm">Save Product</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Product Modal -->
+  <div class="modal fade" id="editProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold fs-6">Edit Product Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="POST" id="editProductForm" action="" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="modal-body p-4">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label small fw-semibold">Product Name</label>
+                <input type="text" name="name" id="edit-name" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">Brand</label>
+                <input type="text" name="brand" id="edit-brand" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Category</label>
+                <select name="category_id" id="edit-category" class="form-select" required>
+                  {% for cat in all_categories %}
+                  <option value="{{ cat.id }}">{{ cat.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">Price (₹)</label>
+                <input type="number" step="0.01" name="price" id="edit-price" class="form-control" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">Stock Units</label>
+                <input type="number" name="stock" id="edit-stock" class="form-control" required>
+              </div>
+
+              <!-- File Upload for Edit -->
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Upload New Images (Single or Multiple)</label>
+                <input type="file" name="product_images" multiple accept="image/*" class="form-control">
+                <span class="text-muted small">Upload new photos to update product gallery.</span>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Image URL</label>
+                <input type="url" name="main_image" id="edit-image" class="form-control">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Description</label>
+                <textarea name="description" id="edit-description" class="form-control" rows="3" required></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-top">
+            <button type="button" class="btn btn-qc-outline btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-qc-primary btn-sm">Update Product</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Category Modal -->
+  <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold fs-6">Create Custom Category</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="POST" action="{% url 'admin_create_category' %}">
+          {% csrf_token %}
+          <div class="modal-body p-4">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Category Name</label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Smart Gardening" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Icon Class (Bootstrap Icons)</label>
+              <input type="text" name="icon_name" class="form-control" value="bi-tag" placeholder="bi-flower1">
+            </div>
+          </div>
+          <div class="modal-footer border-top">
+            <button type="button" class="btn btn-qc-outline btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-qc-primary btn-sm">Create Category</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Product Details Modal (In-Admin, No Redirect) -->
+  <div class="modal fade" id="viewProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="modal-header border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace" id="modal-view-brand">Brand</span>
+            <h5 class="modal-title fw-bold fs-6 mb-0" id="modal-view-name">Product Name</h5>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-4">
+            <div class="col-md-5">
+              <div class="border rounded-4 p-2 bg-light d-flex align-items-center justify-content-center" style="height: 260px;">
+                <img src="" id="modal-view-img" class="img-fluid rounded-3" style="max-height: 100%; object-fit: contain;" alt="Product preview">
+              </div>
+            </div>
+            <div class="col-md-7">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="badge bg-secondary-subtle text-dark rounded-pill px-3 py-1" id="modal-view-category">Category</span>
+                <span class="badge-trust" id="modal-view-trust"><i class="bi bi-shield-check"></i> 95% Trust</span>
+              </div>
+
+              <div class="d-flex align-items-baseline gap-2 mb-3">
+                <span class="fw-bold fs-3" id="modal-view-price">₹0.00</span>
+                <span class="text-muted small">·</span>
+                <span class="text-muted small" id="modal-view-rating">4.8 ★ (120 reviews)</span>
+              </div>
+
+              <div class="p-3 bg-light rounded-3 mb-3 small">
+                <div class="d-flex justify-content-between mb-1">
+                  <span class="text-muted">Inventory Units:</span>
+                  <span class="fw-semibold text-dark" id="modal-view-stock">50 units</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="text-muted">Status:</span>
+                  <span class="badge bg-success-subtle text-success rounded-pill px-2">Published &amp; Active</span>
+                </div>
+              </div>
+
+              <label class="form-label small fw-semibold">Product Description:</label>
+              <div class="small text-muted p-3 border rounded-3 bg-body-tertiary" id="modal-view-desc" style="max-height: 120px; overflow-y: auto;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top">
+          <button type="button" class="btn btn-qc-primary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    // View Product Modal (Stays in Admin)
+    $('.btn-view-product').on('click', function() {
+      const id = $(this).data('id');
+      const name = $(this).data('name');
+      const brand = $(this).data('brand');
+      const category = $(this).data('category');
+      const price = $(this).data('price');
+      const stock = $(this).data('stock');
+      const trust = $(this).data('trust');
+      const rating = $(this).data('rating');
+      const reviews = $(this).data('reviews');
+      const image = $(this).data('image');
+      const description = $(this).data('description');
+
+      $('#modal-view-img').attr('src', image);
+      $('#modal-view-name').text(name);
+      $('#modal-view-brand').text(brand);
+      $('#modal-view-category').text(category);
+      $('#modal-view-price').text('₹' + price);
+      $('#modal-view-stock').text(stock + ' units');
+      $('#modal-view-trust').html('<i class="bi bi-shield-check"></i> ' + trust + '% Trust');
+      $('#modal-view-rating').text(rating + ' ★ (' + reviews + ' reviews)');
+      $('#modal-view-desc').text(description);
+    });
+
+    // Edit Product Modal
+    $('.btn-edit-product').on('click', function() {
+      const id = $(this).data('id');
+      const name = $(this).data('name');
+      const brand = $(this).data('brand');
+      const category = $(this).data('category');
+      const price = $(this).data('price');
+      const stock = $(this).data('stock');
+      const image = $(this).data('image');
+      const description = $(this).data('description');
+
+      $('#edit-name').val(name);
+      $('#edit-brand').val(brand);
+      $('#edit-category').val(category);
+      $('#edit-price').val(price);
+      $('#edit-stock').val(stock);
+      $('#edit-image').val(image);
+      $('#edit-description').val(description);
+
+      $('#editProductForm').attr('action', `/admin-panel/products/edit/${id}/`);
+    });
+  });
+</script>
+{% endblock %}

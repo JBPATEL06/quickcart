@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Secure Payment Gateway — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 px-lg-5 py-4">
+
+  <!-- Header Stepper -->
+  <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+      <h1 class="fw-bold fs-3 mb-1">Secure Checkout &amp; Payment</h1>
+      <span class="text-muted small"><i class="bi bi-shield-lock-fill text-success me-1"></i> Bank-grade 256-bit SSL encrypted transaction</span>
+    </div>
+    <a href="{% url 'cart:cart_detail' %}" class="btn btn-qc-outline btn-sm">
+      <i class="bi bi-arrow-left me-1"></i> Back to Cart
+    </a>
+  </div>
+
+  <form method="POST" action="{% url 'payment_gateway' %}" id="payment-form">
+    {% csrf_token %}
+
+    <div class="row g-4">
+      
+      <!-- Left Column: Address & Payment Methods -->
+      <div class="col-lg-8">
+
+        <!-- 1. Delivery Details -->
+        <div class="card border p-4 mb-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0 d-flex align-items-center gap-2">
+              <span class="badge bg-dark text-white rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem;">1</span>
+              Delivery Address
+            </h5>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Recipient Name</label>
+              <input type="text" class="form-control" name="recipient_name" value="{{ user.get_full_name|default:'Maya Thompson' }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Phone Number</label>
+              <input type="text" class="form-control" name="phone" value="{{ user.phone|default:'+91 98765 43210' }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Shipping Address</label>
+              <input type="text" class="form-control" name="shipping_address" value="42 Silver Oak Avenue, Koramangala, Bengaluru - 560034" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Payment Method Selector -->
+        <div class="card border p-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+          <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
+            <span class="badge bg-dark text-white rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem;">2</span>
+            Select Payment Method
+          </h5>
+
+          <!-- Payment Options Nav Pills -->
+          <ul class="nav nav-pills mb-4 gap-2" id="payment-methods-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active rounded-pill px-4 py-2 border" id="pills-card-tab" data-bs-toggle="pill" data-bs-target="#pills-card" type="button" role="tab" onclick="setPaymentMethod('Credit / Debit Card')">
+                <i class="bi bi-credit-card me-2"></i>Cards
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link rounded-pill px-4 py-2 border" id="pills-upi-tab" data-bs-toggle="pill" data-bs-target="#pills-upi" type="button" role="tab" onclick="setPaymentMethod('UPI Instant Pay')">
+                <i class="bi bi-qr-code-scan me-2"></i>UPI / QR
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link rounded-pill px-4 py-2 border" id="pills-netbanking-tab" data-bs-toggle="pill" data-bs-target="#pills-netbanking" type="button" role="tab" onclick="setPaymentMethod('Net Banking')">
+                <i class="bi bi-bank me-2"></i>Net Banking
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link rounded-pill px-4 py-2 border" id="pills-cod-tab" data-bs-toggle="pill" data-bs-target="#pills-cod" type="button" role="tab" onclick="setPaymentMethod('Cash on Delivery')">
+                <i class="bi bi-cash-stack me-2"></i>COD
+              </button>
+            </li>
+          </ul>
+
+          <input type="hidden" name="payment_method" id="selected-payment-method" value="Credit / Debit Card">
+
+          <!-- Payment Tab Content -->
+          <div class="tab-content" id="payment-methods-tabContent">
+            
+            <!-- Option A: Cards -->
+            <div class="tab-pane fade show active" id="pills-card" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Card Number</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-credit-card-2-front"></i></span>
+                    <input type="text" class="form-control font-monospace" placeholder="4532 •••• •••• 8892" value="4532 8920 1145 8892">
+                    <span class="input-group-text"><i class="bi bi-shield-check text-success"></i></span>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-semibold">Cardholder Name</label>
+                  <input type="text" class="form-control" value="MAYA THOMPSON">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-semibold">Expiry Date</label>
+                  <input type="text" class="form-control font-monospace" placeholder="MM/YY" value="08/29">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-semibold">CVV</label>
+                  <input type="password" class="form-control font-monospace" placeholder="•••" value="782" maxlength="4">
+                </div>
+              </div>
+            </div>
+
+            <!-- Option B: UPI -->
+            <div class="tab-pane fade" id="pills-upi" role="tabpanel">
+              <div class="row g-4 align-items-center">
+                <div class="col-md-5 text-center border-end">
+                  <div class="p-3 bg-light rounded-4 d-inline-block border">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=quickcart@icici%26pn=QuickCart%26am={{ cart.grand_total }}" alt="UPI QR Code" class="img-fluid rounded-3" style="width: 160px; height: 160px;">
+                  </div>
+                  <div class="small text-muted mt-2"><i class="bi bi-camera me-1"></i> Scan with GPay, PhonePe, Paytm</div>
+                </div>
+                <div class="col-md-7">
+                  <label class="form-label small fw-semibold">Or enter your UPI ID</label>
+                  <div class="input-group mb-2">
+                    <input type="text" class="form-control" placeholder="username@upi / mobile@okhdfcbank" value="maya@okaxis">
+                    <button class="btn btn-qc-outline btn-sm" type="button">Verify</button>
+                  </div>
+                  <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i> Verified: Maya Thompson</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Option C: Net Banking -->
+            <div class="tab-pane fade" id="pills-netbanking" role="tabpanel">
+              <div class="row g-2 mb-3">
+                <div class="col-6 col-md-4">
+                  <div class="border rounded-3 p-3 text-center cursor-pointer bank-card selected-bank">
+                    <i class="bi bi-bank fs-4 d-block mb-1"></i>
+                    <span class="small fw-semibold">HDFC Bank</span>
+                  </div>
+                </div>
+                <div class="col-6 col-md-4">
+                  <div class="border rounded-3 p-3 text-center cursor-pointer bank-card">
+                    <i class="bi bi-bank fs-4 d-block mb-1"></i>
+                    <span class="small fw-semibold">SBI Bank</span>
+                  </div>
+                </div>
+                <div class="col-6 col-md-4">
+                  <div class="border rounded-3 p-3 text-center cursor-pointer bank-card">
+                    <i class="bi bi-bank fs-4 d-block mb-1"></i>
+                    <span class="small fw-semibold">ICICI Bank</span>
+                  </div>
+                </div>
+              </div>
+              <label class="form-label small fw-semibold">Other Popular Banks</label>
+              <select class="form-select">
+                <option selected>Axis Bank</option>
+                <option>Kotak Mahindra Bank</option>
+                <option>Bank of Baroda</option>
+                <option>Punjab National Bank</option>
+              </select>
+            </div>
+
+            <!-- Option D: Cash on Delivery -->
+            <div class="tab-pane fade" id="pills-cod" role="tabpanel">
+              <div class="alert alert-info py-3 px-3 rounded-4 mb-0 small">
+                <i class="bi bi-info-circle-fill me-2 fs-5 align-middle"></i>
+                Pay cash or scan QR with delivery executive when package arrives.
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Right Column: Order Summary -->
+      <div class="col-lg-4">
+        <div class="card border shadow-sm p-4 sticky-top" style="top: 90px; border-radius: var(--radius-xl); background: var(--bg-surface);">
+          <h5 class="fw-bold mb-4">Summary Breakdown</h5>
+          
+          <div class="d-flex justify-content-between mb-2 small">
+            <span class="text-muted">Subtotal ({{ cart.items.count }} items)</span>
+            <span class="fw-semibold">₹{{ cart.subtotal }}</span>
+          </div>
+
+          {% if cart.promo_code %}
+          <div class="d-flex justify-content-between mb-2 small text-success">
+            <span><i class="bi bi-tag-fill me-1"></i> Discount ({{ cart.promo_code }})</span>
+            <span class="fw-semibold">-₹{{ cart.discount_amount }}</span>
+          </div>
+          {% endif %}
+
+          <div class="d-flex justify-content-between mb-2 small">
+            <span class="text-muted">Shipping</span>
+            <span class="fw-semibold text-success">{% if cart.estimated_shipping == 0 %}FREE{% else %}₹{{ cart.estimated_shipping }}{% endif %}</span>
+          </div>
+
+          <div class="d-flex justify-content-between mb-3 small">
+            <span class="text-muted">Estimated Tax</span>
+            <span class="fw-semibold">₹{{ cart.estimated_tax }}</span>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="d-flex justify-content-between mb-4">
+            <span class="fw-bold fs-5">Amount Payable</span>
+            <span class="fw-bold fs-4 text-dark">₹{{ cart.grand_total|floatformat:2 }}</span>
+          </div>
+
+          <button type="button" class="btn btn-qc-primary w-100 py-3 rounded-pill fw-semibold justify-content-center shadow" id="btn-pay-now" onclick="processSecurePayment()">
+            <i class="bi bi-lock-fill me-2"></i> Pay ₹{{ cart.grand_total|floatformat:2 }} Now
+          </button>
+
+          <div class="text-center text-muted small mt-3" style="font-size: 0.75rem;">
+            <i class="bi bi-shield-check text-success me-1"></i> QuickCart Buyer Protection Guaranteed
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+</div>
+
+<!-- Payment Processing Modal -->
+<div class="modal fade" id="paymentProcessingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg text-center p-4" style="border-radius: var(--radius-xl);">
+      <div class="py-4" id="modal-spinner-state">
+        <div class="spinner-border text-dark mb-3" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
+        <h5 class="fw-bold mb-1">Authorizing Transaction</h5>
+        <p class="text-muted small mb-0">Connecting securely to payment gateway...</p>
+      </div>
+      <div class="py-4 d-none" id="modal-success-state">
+        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3 bg-success-subtle text-success" style="width: 64px; height: 64px;">
+          <i class="bi bi-check-lg fs-1"></i>
+        </div>
+        <h5 class="fw-bold mb-1">Payment Successful!</h5>
+        <p class="text-muted small mb-0">Generating order receipt &amp; tracking ID...</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function setPaymentMethod(methodName) {
+    document.getElementById('selected-payment-method').value = methodName;
+  }
+
+  function processSecurePayment() {
+    const modalEl = document.getElementById('paymentProcessingModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    setTimeout(() => {
+      document.getElementById('modal-spinner-state').classList.add('d-none');
+      document.getElementById('modal-success-state').classList.remove('d-none');
+
+      setTimeout(() => {
+        document.getElementById('payment-form').submit();
+      }, 1000);
+    }, 1500);
+  }
+</script>
+{% endblock %}

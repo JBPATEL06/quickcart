@@ -1,0 +1,1 @@
+# QuickCart Main Application Package

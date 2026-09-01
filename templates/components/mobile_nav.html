@@ -1,0 +1,35 @@
+<!-- Mobile Bottom Navigation Bar -->
+<nav class="qc-mobile-bottom-nav d-md-none border-top position-fixed bottom-0 start-0 end-0 py-2 px-3 bg-body shadow" style="z-index: 1040; backdrop-filter: blur(10px);">
+  <div class="d-flex justify-content-around align-items-center">
+    <a href="{% url 'store:home' %}" class="d-flex flex-column align-items-center text-decoration-none text-body small">
+      <i class="bi bi-house fs-5"></i>
+      <span style="font-size: 0.7rem;">Home</span>
+    </a>
+    <a href="{% url 'store:search' %}" class="d-flex flex-column align-items-center text-decoration-none text-body small">
+      <i class="bi bi-search fs-5"></i>
+      <span style="font-size: 0.7rem;">Search</span>
+    </a>
+    <a href="{% url 'customer:wishlist' %}" class="d-flex flex-column align-items-center text-decoration-none text-body small">
+      <i class="bi bi-heart fs-5"></i>
+      <span style="font-size: 0.7rem;">Saved</span>
+    </a>
+    <a href="{% url 'cart:cart_detail' %}" class="d-flex flex-column align-items-center text-decoration-none text-body small position-relative">
+      <i class="bi bi-bag fs-5"></i>
+      <span id="mobile-cart-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary text-white {% if cart_item_count == 0 %}d-none{% endif %}" style="font-size: 0.6rem;">
+        {{ cart_item_count }}
+      </span>
+      <span style="font-size: 0.7rem;">Cart</span>
+    </a>
+    {% if user.is_authenticated %}
+    <a href="{% url 'customer:orders' %}" class="d-flex flex-column align-items-center text-decoration-none text-body small">
+      <i class="bi bi-person-circle fs-5"></i>
+      <span style="font-size: 0.7rem;">Account</span>
+    </a>
+    {% else %}
+    <a href="{% url 'accounts:login' %}" class="d-flex flex-column align-items-center text-decoration-none text-body small">
+      <i class="bi bi-person fs-5"></i>
+      <span style="font-size: 0.7rem;">Login</span>
+    </a>
+    {% endif %}
+  </div>
+</nav>

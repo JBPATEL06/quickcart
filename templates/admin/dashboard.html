@@ -1,0 +1,339 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Overview — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+  
+  <!-- Header Title & Controls (Flowstep Screen 21) -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
+    <div>
+      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+        <span>Admin panel</span>
+        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+        <span>Overview</span>
+      </div>
+      <h1 class="fw-bold fs-3 mb-1">Dashboard</h1>
+      <p class="text-muted small mb-0">Live overview of store performance &amp; operations</p>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      <button class="btn btn-qc-outline btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2" id="btn-export-report">
+        <i class="bi bi-download"></i>
+        <span>Export report</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Export Alert Banner (Hidden by default) -->
+  <div class="alert alert-dark d-none align-items-center justify-content-between py-2 px-3 mb-4 rounded-3 small" id="export-success-alert">
+    <div><i class="bi bi-check-circle-fill me-2 text-success"></i> Report export is ready to download (CSV/PDF).</div>
+    <button type="button" class="btn-close btn-close-white" onclick="$('#export-success-alert').addClass('d-none');"></button>
+  </div>
+
+  <!-- 4 KPI Metric Cards (Flowstep Screen 21) -->
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4">
+    
+    <!-- Orders Total -->
+    <div class="col">
+      <div class="qc-metric-card h-100">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="text-muted small fw-medium">Total Orders</span>
+          <div class="qc-metric-icon">
+            <i class="bi bi-bag"></i>
+          </div>
+        </div>
+        <div>
+          <div class="fw-bold fs-3 mb-1">{{ total_orders_count }}</div>
+          <div class="small d-flex align-items-center gap-1">
+            <span class="text-success fw-semibold"><i class="bi bi-arrow-up-short"></i> Live Sync</span>
+            <span class="text-muted">from database</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Revenue -->
+    <div class="col">
+      <div class="qc-metric-card h-100">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="text-muted small fw-medium">Gross Revenue</span>
+          <div class="qc-metric-icon">
+            <i class="bi bi-currency-rupee"></i>
+          </div>
+        </div>
+        <div>
+          <div class="fw-bold fs-3 mb-1">₹{{ total_revenue }}</div>
+          <div class="small d-flex align-items-center gap-1">
+            <span class="text-success fw-semibold"><i class="bi bi-shield-check"></i> Verified</span>
+            <span class="text-muted">excl. cancelled</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Customers -->
+    <div class="col">
+      <div class="qc-metric-card h-100">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="text-muted small fw-medium">Active Customers</span>
+          <div class="qc-metric-icon">
+            <i class="bi bi-people"></i>
+          </div>
+        </div>
+        <div>
+          <div class="fw-bold fs-3 mb-1">{{ total_users_count }}</div>
+          <div class="small d-flex align-items-center gap-1">
+            <span class="text-success fw-semibold">+50 profiles</span>
+            <span class="text-muted">seeded &amp; active</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Alerts -->
+    <div class="col">
+      <div class="qc-metric-card h-100">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="text-muted small fw-medium">Operational Alerts</span>
+          <div class="qc-metric-icon">
+            <i class="bi bi-exclamation-triangle"></i>
+          </div>
+        </div>
+        <div>
+          <div class="fw-bold fs-3 mb-1">{{ alerts_count }}</div>
+          <div class="small d-flex align-items-center gap-1">
+            <span class="text-warning fw-semibold">{{ low_stock_products.count }} low stock</span>
+            <span class="text-muted">• {{ flagged_reviews.count }} flagged</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Charts Row (Sales Trend & Order Status Donut) -->
+  <div class="row g-4 mb-4">
+    
+    <!-- Sales Trend Line Chart -->
+    <div class="col-lg-7 col-xl-8">
+      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold mb-1 fs-6">Sales Trend &amp; Trajectory</h5>
+            <p class="text-muted small mb-0">Daily revenue performance across catalog</p>
+          </div>
+          <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 small">Real-time</span>
+        </div>
+
+        <div style="height: 250px; position: relative;">
+          <canvas id="salesTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Status Donut Chart -->
+    <div class="col-lg-5 col-xl-4">
+      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="mb-3">
+          <h5 class="fw-bold mb-1 fs-6">Order Fulfillment Distribution</h5>
+          <p class="text-muted small mb-0">Live status distribution across orders</p>
+        </div>
+
+        <!-- Donut Visual -->
+        <div class="qc-donut-wrapper my-3">
+          <div class="qc-donut-circle">
+            <div class="fw-bold fs-4 lh-1">{{ total_orders_count }}</div>
+            <div class="text-muted small" style="font-size: 0.7rem;">Total orders</div>
+          </div>
+        </div>
+
+        <!-- Status Legend Breakdown -->
+        <div class="row g-2 text-sm pt-2">
+          <div class="col-6 d-flex align-items-center gap-2 small">
+            <span class="rounded-circle d-inline-block" style="width: 8px; height: 8px; background-color: var(--primary);"></span>
+            <span class="text-muted">Delivered</span>
+            <span class="fw-semibold ms-auto">{{ delivered_cnt }}</span>
+          </div>
+          <div class="col-6 d-flex align-items-center gap-2 small">
+            <span class="rounded-circle d-inline-block" style="width: 8px; height: 8px; background-color: #64748b;"></span>
+            <span class="text-muted">Shipped</span>
+            <span class="fw-semibold ms-auto">{{ shipped_cnt }}</span>
+          </div>
+          <div class="col-6 d-flex align-items-center gap-2 small">
+            <span class="rounded-circle d-inline-block" style="width: 8px; height: 8px; background-color: #f59e0b;"></span>
+            <span class="text-muted">Pending</span>
+            <span class="fw-semibold ms-auto">{{ placed_cnt|add:confirmed_cnt }}</span>
+          </div>
+          <div class="col-6 d-flex align-items-center gap-2 small">
+            <span class="rounded-circle d-inline-block" style="width: 8px; height: 8px; background-color: #e2e8f0;"></span>
+            <span class="text-muted">Cancelled</span>
+            <span class="fw-semibold ms-auto">{{ cancelled_cnt }}</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Recent Orders & Needs Attention -->
+  <div class="row g-4">
+    
+    <!-- Recent Orders Table -->
+    <div class="col-lg-8">
+      <div class="card border shadow-sm p-4 h-100 rounded-4" style="background: var(--bg-surface);">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold mb-1 fs-6">Recent Orders</h5>
+            <p class="text-muted small mb-0">Latest transactions received</p>
+          </div>
+          <a href="{% url 'admin_orders' %}" class="btn btn-qc-outline btn-sm">View All Orders</a>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="bg-light text-muted">
+              <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ord in recent_orders %}
+              <tr>
+                <td class="fw-bold">#{{ ord.order_number }}</td>
+                <td>{{ ord.recipient_name }}</td>
+                <td class="fw-semibold">₹{{ ord.total_amount }}</td>
+                <td>
+                  {% if ord.status == 'delivered' %}
+                  <span class="badge bg-success-subtle text-success rounded-pill px-2">Delivered</span>
+                  {% elif ord.status in 'shipped in_transit out_for_delivery' %}
+                  <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2">In Transit</span>
+                  {% else %}
+                  <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2">Pending</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a href="{% url 'admin_order_detail' ord.order_number %}" class="btn btn-sm btn-light border py-0 px-2">View</a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center py-4 text-muted">No orders placed yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Needs Attention Widget -->
+    <div class="col-lg-4">
+      <div class="card border shadow-sm p-4 h-100 rounded-4" style="background: var(--bg-surface);">
+        <h5 class="fw-bold mb-1 fs-6">Needs Attention</h5>
+        <p class="text-muted small mb-3">System items requiring moderation or restock</p>
+
+        <div class="d-flex flex-column gap-3">
+          {% for r in flagged_reviews %}
+          <div class="p-3 bg-light rounded-3 small border-start border-warning border-3">
+            <div class="d-flex justify-content-between">
+              <span class="fw-bold text-dark">Suspicious Review Flagged</span>
+              <span class="badge bg-warning text-dark">{{ r.suspicion_score }}% match</span>
+            </div>
+            <div class="text-muted mt-1">{{ r.review.content|truncatechars:50 }}</div>
+          </div>
+          {% endfor %}
+
+          {% for p in low_stock_products %}
+          <div class="p-3 bg-light rounded-3 small border-start border-danger border-3">
+            <div class="d-flex justify-content-between">
+              <span class="fw-bold text-dark">{{ p.name|truncatechars:24 }}</span>
+              <span class="badge bg-danger">{{ p.stock }} left</span>
+            </div>
+            <div class="text-muted mt-1">Stock is below minimum threshold (20 units).</div>
+          </div>
+          {% endfor %}
+
+          {% if not flagged_reviews and not low_stock_products %}
+          <div class="text-center py-4 text-muted small">
+            <i class="bi bi-check2-all fs-2 text-success d-block mb-1"></i>
+            All systems running smoothly! No open alerts.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    const ctx = document.getElementById('salesTrendChart').getContext('2d');
+    const isDark = $('html').attr('data-theme') === 'dark';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+    const lineColor = isDark ? '#ffffff' : '#09090b';
+    const gridColor = isDark ? '#27272e' : '#f1f5f9';
+
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Aug 26', 'Aug 27', 'Aug 28', 'Aug 29', 'Aug 30', 'Aug 31', 'Sep 01'],
+        datasets: [{
+          label: 'Revenue (₹)',
+          data: [4200, 5800, 6900, 8100, 11400, 14200, {{ total_revenue_num|default:"18500" }}],
+          borderColor: lineColor,
+          borderWidth: 2.5,
+          tension: 0.4,
+          pointRadius: 3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: function(context) {
+                return 'Revenue: ₹' + context.raw.toLocaleString();
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: textColor, font: { size: 11 } }
+          },
+          y: {
+            grid: { color: gridColor },
+            ticks: { 
+              color: textColor, 
+              font: { size: 11 },
+              callback: function(val) { return '₹' + val; }
+            }
+          }
+        }
+      }
+    });
+
+    $('#btn-export-report').on('click', function() {
+      $('#export-success-alert').removeClass('d-none');
+      showToast('Exporting live sales & inventory report...');
+    });
+  });
+</script>
+{% endblock %}

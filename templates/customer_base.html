@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid px-4 px-lg-5">
+  
+  <!-- Back to Shopping Sub-Navbar -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center py-3 border-bottom mb-3 gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <a href="{% url 'store:home' %}" class="btn btn-qc-outline btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2">
+        <i class="bi bi-arrow-left"></i>
+        <span>Back to Shopping</span>
+      </a>
+      <span class="text-muted small d-none d-sm-inline">|</span>
+      <nav aria-label="breadcrumb" class="d-none d-sm-block">
+        <ol class="breadcrumb m-0 small">
+          <li class="breadcrumb-item"><a href="{% url 'store:home' %}" class="text-muted text-decoration-none">Store</a></li>
+          <li class="breadcrumb-item text-muted">Customer Portal</li>
+          <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">{{ active_tab|title }}</li>
+        </ol>
+      </nav>
+    </div>
+    
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'store:home' %}#categories" class="btn btn-sm btn-link text-decoration-none text-muted p-0 me-3 small">
+        <i class="bi bi-grid me-1"></i> Browse Categories
+      </a>
+      <a href="{% url 'cart:cart_detail' %}" class="btn btn-sm btn-qc-primary rounded-pill px-3 d-inline-flex align-items-center gap-2">
+        <i class="bi bi-bag"></i>
+        <span>View Cart</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="qc-customer-wrapper pt-2">
+    
+    <!-- Customer Sidebar Navigation (Flowstep Screens 15-20) -->
+    <aside class="d-flex flex-column">
+      
+      <!-- User Identity Card -->
+      <div class="qc-sidebar-card shadow-sm">
+        <div class="qc-avatar-circle">
+          {{ user.initials }}
+        </div>
+        <div class="text-truncate">
+          <div class="fw-semibold text-truncate small">{{ user.display_name }}</div>
+          <div class="text-white-50 text-truncate" style="font-size: 0.75rem;">{{ user.email }}</div>
+        </div>
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="d-flex flex-column">
+        <a href="{% url 'customer:orders' %}" class="qc-nav-item {% if active_tab == 'orders' %}active{% endif %}">
+          <i class="bi bi-box-seam"></i>
+          <span>My orders</span>
+        </a>
+        <a href="{% url 'customer:wishlist' %}" class="qc-nav-item {% if active_tab == 'wishlist' %}active{% endif %}">
+          <i class="bi bi-heart"></i>
+          <span>Saved items</span>
+        </a>
+        <a href="{% url 'customer:addresses' %}" class="qc-nav-item {% if active_tab == 'addresses' %}active{% endif %}">
+          <i class="bi bi-geo-alt"></i>
+          <span>Addresses</span>
+        </a>
+        <a href="{% url 'customer:settings' %}" class="qc-nav-item {% if active_tab == 'settings' %}active{% endif %}">
+          <i class="bi bi-gear"></i>
+          <span>Account settings</span>
+        </a>
+        <a href="{% url 'customer:customer_help' %}" class="qc-nav-item {% if active_tab == 'help' %}active{% endif %}">
+          <i class="bi bi-question-circle"></i>
+          <span>Help &amp; FAQs</span>
+        </a>
+
+        <hr class="my-2" style="border-color: var(--border-color);">
+
+        <a href="{% url 'store:home' %}" class="qc-nav-item text-decoration-none">
+          <i class="bi bi-shop"></i>
+          <span>Continue Shopping</span>
+        </a>
+      </nav>
+
+    </aside>
+
+    <!-- Main Panel Content -->
+    <section class="qc-customer-content min-w-0">
+      {% block customer_content %}{% endblock %}
+    </section>
+
+  </div>
+</div>
+{% endblock %}

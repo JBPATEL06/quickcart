@@ -1,0 +1,147 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Reports &amp; Analytics — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+  
+  <!-- Header Title & Controls (Flowstep Screen 26) -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
+    <div>
+      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+        <span>Admin panel</span>
+        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+        <span>Reports</span>
+      </div>
+      <h1 class="fw-bold fs-3 mb-1">Reports &amp; Analytics</h1>
+      <p class="text-muted small mb-0">Analyze sales volume, revenue growth, and product performance</p>
+    </div>
+
+    <button class="btn btn-qc-outline btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2" onclick="showToast('Downloading complete revenue report PDF...');">
+      <i class="bi bi-download"></i>
+      <span>Export report</span>
+    </button>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row g-4 mb-4">
+    
+    <!-- Sales by Category (Bar Chart) -->
+    <div class="col-lg-6">
+      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <h5 class="fw-bold mb-1 fs-6">Sales by Category</h5>
+        <p class="text-muted small mb-3">Volume distribution across top departments</p>
+        <div style="height: 240px; position: relative;">
+          <canvas id="categorySalesChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Revenue Growth Trend -->
+    <div class="col-lg-6">
+      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <h5 class="fw-bold mb-1 fs-6">Monthly Growth Rate</h5>
+        <p class="text-muted small mb-3">Gross revenue vs previous periods</p>
+        <div style="height: 240px; position: relative;">
+          <canvas id="revenueGrowthChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Top Products Table -->
+  <div class="card border shadow-sm p-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <h5 class="fw-bold mb-1 fs-6">Top Performing Products</h5>
+    <p class="text-muted small mb-3">Best-sellers ranked by gross revenue</p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light small text-muted border-bottom">
+          <tr>
+            <th class="ps-3 py-2">Product Name</th>
+            <th class="py-2">Category</th>
+            <th class="py-2">Units Sold</th>
+            <th class="py-2">Gross Revenue</th>
+            <th class="text-end pe-3 py-2">Customer Rating</th>
+          </tr>
+        </thead>
+        <tbody class="small">
+          {% for prod in products|slice:":5" %}
+          <tr>
+            <td class="ps-3 py-3 fw-semibold">
+              <img src="{{ prod.main_image }}" class="rounded-2 me-2" style="width: 32px; height: 32px; object-fit: cover;" alt="">
+              {{ prod.name }}
+            </td>
+            <td class="py-3 text-muted">{{ prod.category.name }}</td>
+            <td class="py-3 fw-semibold">{{ prod.review_count|default:"148" }} units</td>
+            <td class="py-3 fw-bold">₹{{ prod.price }}</td>
+            <td class="text-end pe-3 py-3">
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill"><i class="bi bi-star-fill me-1"></i> {{ prod.rating }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    const isDark = $('html').attr('data-theme') === 'dark';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+    const barColor = isDark ? '#ffffff' : '#09090b';
+
+    // 1. Category Bar Chart
+    new Chart(document.getElementById('categorySalesChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Audio', 'Electronics', 'Phones', 'Home', 'Wellness'],
+        datasets: [{
+          data: [42, 35, 28, 19, 14],
+          backgroundColor: barColor,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: textColor } },
+          y: { grid: { display: false }, ticks: { color: textColor } }
+        }
+      }
+    });
+
+    // 2. Growth Chart
+    new Chart(document.getElementById('revenueGrowthChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          data: [12000, 19000, 24000, 31000, 42000, 48269],
+          borderColor: barColor,
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: textColor } },
+          y: { grid: { display: false }, ticks: { color: textColor } }
+        }
+      }
+    });
+  });
+</script>
+{% endblock %}

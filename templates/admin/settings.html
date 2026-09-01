@@ -1,0 +1,88 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Settings — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+  
+  <!-- Header Title (Flowstep Admin Settings) -->
+  <div class="mb-4">
+    <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+      <span>Admin panel</span>
+      <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+      <span>Settings</span>
+    </div>
+    <h1 class="fw-bold fs-3 mb-1">Store Settings</h1>
+    <p class="text-muted small mb-0">Configure store metadata, payment thresholds, and security parameters</p>
+  </div>
+
+  <div class="row g-4">
+    
+    <!-- Store Profile -->
+    <div class="col-lg-6">
+      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <h5 class="fw-bold mb-3 fs-6"><i class="bi bi-shop me-2"></i> Store Profile</h5>
+        
+        <form method="POST" action="{% url 'admin_settings' %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Store Name</label>
+            <input type="text" name="store_name" class="form-control" value="{{ settings_data.store_name|default:'QuickCart E-Commerce' }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Support Contact Email</label>
+            <input type="email" name="support_email" class="form-control" value="{{ settings_data.support_email|default:'support@quickcart.com' }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Free Shipping Threshold (₹)</label>
+            <input type="number" name="free_shipping_threshold" class="form-control" value="{{ settings_data.free_shipping_threshold|default:'999' }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Default Tax Rate (%)</label>
+            <input type="number" name="tax_rate" class="form-control" value="{{ settings_data.tax_rate|default:'5' }}" required>
+          </div>
+          <button type="submit" class="btn btn-qc-primary btn-sm">Save Store Changes</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Security & AI Moderation -->
+    <div class="col-lg-6">
+      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <h5 class="fw-bold mb-3 fs-6"><i class="bi bi-shield-check me-2"></i> Security &amp; AI Engine</h5>
+        
+        <div class="d-flex flex-column gap-3 mb-4">
+          <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
+            <div>
+              <label class="form-check-label fw-semibold small" for="ai-review-mod">AI Fake Review Detection</label>
+              <div class="text-muted" style="font-size: 0.75rem;">Flag suspicious or bot-generated reviews automatically</div>
+            </div>
+            <input class="form-check-input ms-0" type="checkbox" id="ai-review-mod" checked>
+          </div>
+
+          <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
+            <div>
+              <label class="form-check-label fw-semibold small" for="two-fa-admin">Enforce 2FA for Staff</label>
+              <div class="text-muted" style="font-size: 0.75rem;">Require two-factor verification on admin panel logins</div>
+            </div>
+            <input class="form-check-input ms-0" type="checkbox" id="two-fa-admin" checked>
+          </div>
+
+          <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
+            <div>
+              <label class="form-check-label fw-semibold small" for="auto-dispatch">Auto Dispatch Updates</label>
+              <div class="text-muted" style="font-size: 0.75rem;">Emit tracking webhook events automatically on courier scan</div>
+            </div>
+            <input class="form-check-input ms-0" type="checkbox" id="auto-dispatch" checked>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-qc-primary btn-sm" onclick="showToast('Security rules updated!');">Update Security Settings</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

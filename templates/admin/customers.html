@@ -1,0 +1,201 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Customers — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+  
+  <!-- Header Title & Controls (Flowstep Screen 24) -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
+    <div>
+      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+        <span>Admin panel</span>
+        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+        <span>Customers</span>
+      </div>
+      <h1 class="fw-bold fs-3 mb-1">Customers ({{ total_count }})</h1>
+      <p class="text-muted small mb-0">View customer profiles, lifetime value, and order history</p>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      <form method="GET" class="position-relative">
+        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+        <input type="text" name="q" value="{{ search_query|default:'' }}" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search customer name, email...">
+      </form>
+    </div>
+  </div>
+
+  <!-- Customers Table (Flowstep Screen 24) -->
+  <div class="card border shadow-sm mb-4" style="border-radius: var(--radius-xl); background: var(--bg-surface); overflow: hidden;">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light small text-muted border-bottom">
+          <tr>
+            <th class="ps-4 py-3">Customer</th>
+            <th class="py-3">Phone</th>
+            <th class="py-3">Joined Date</th>
+            <th class="py-3">Total Orders</th>
+            <th class="py-3">Total Spent</th>
+            <th class="py-3">Status</th>
+            <th class="text-end pe-4 py-3">Action</th>
+          </tr>
+        </thead>
+        <tbody class="small">
+          {% for item in customers %}
+          <tr class="admin-cust-row">
+            <td class="ps-4 py-3">
+              <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold small" style="width: 38px; height: 38px; background: var(--bg-muted); color: var(--text-main);">
+                  {{ item.user.first_name|slice:":1"|upper }}{{ item.user.last_name|slice:":1"|upper }}
+                </div>
+                <div>
+                  <div class="fw-semibold">{{ item.user.first_name }} {{ item.user.last_name }}</div>
+                  <div class="text-muted" style="font-size: 0.75rem;">{{ item.user.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="py-3 text-muted">
+              {{ item.user.phone|default:'+91 98765 43210' }}
+            </td>
+            <td class="py-3 text-muted">
+              {{ item.user.date_joined|date:"M d, Y" }}
+            </td>
+            <td class="py-3 fw-semibold">
+              {{ item.orders_count }} orders
+            </td>
+            <td class="py-3 fw-bold">
+              ₹{{ item.total_spent }}
+            </td>
+            <td class="py-3">
+              {% if item.user.is_active %}
+              <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Active</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1">Suspended</span>
+              {% endif %}
+            </td>
+            <td class="text-end pe-4 py-3">
+              <button 
+                class="btn btn-qc-outline btn-sm py-1 px-3 btn-view-customer"
+                data-bs-toggle="modal"
+                data-bs-target="#customerDetailModal"
+                data-name="{{ item.user.first_name }} {{ item.user.last_name }}"
+                data-email="{{ item.user.email }}"
+                data-phone="{{ item.user.phone|default:'+91 98765 43210' }}"
+                data-joined="{{ item.user.date_joined|date:'F d, Y' }}"
+                data-orders="{{ item.orders_count }}"
+                data-spent="{{ item.total_spent }}"
+                data-address="{% if item.default_address %}{{ item.default_address.street_address }}, {{ item.default_address.city }} - {{ item.default_address.postal_code }}{% else %}No address saved{% endif %}"
+              >
+                View Profile
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">No customers found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Numbered Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light">
+      <span class="small text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }} customers</span>
+      <nav aria-label="Customer pagination">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}">« Previous</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">« Previous</span></li>
+          {% endif %}
+
+          <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}">Next »</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">Next »</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Customer Details Modal -->
+  <div class="modal fade" id="customerDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold fs-6">Customer Profile Overview</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-dark text-white fw-bold fs-5" style="width: 52px; height: 52px;" id="modal-cust-avatar">
+              CU
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0" id="modal-cust-name">Maya Thompson</h5>
+              <span class="text-muted small" id="modal-cust-email">maya@example.com</span>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 text-center">
+                <span class="text-muted small d-block mb-1">Total Orders</span>
+                <span class="fw-bold fs-5" id="modal-cust-orders">12</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 text-center">
+                <span class="text-muted small d-block mb-1">Total Spent</span>
+                <span class="fw-bold fs-5 text-dark" id="modal-cust-spent">₹4,290.00</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3 small">
+            <div class="text-muted mb-1"><i class="bi bi-telephone me-2"></i><strong>Phone:</strong> <span id="modal-cust-phone">+91 98765 43210</span></div>
+            <div class="text-muted mb-1"><i class="bi bi-calendar me-2"></i><strong>Registered:</strong> <span id="modal-cust-joined">Sep 01, 2026</span></div>
+            <div class="text-muted"><i class="bi bi-geo-alt me-2"></i><strong>Primary Address:</strong> <span id="modal-cust-address">42 Silver Oak Avenue, Bengaluru</span></div>
+          </div>
+        </div>
+        <div class="modal-footer border-top">
+          <button type="button" class="btn btn-qc-primary btn-sm" data-bs-dismiss="modal">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    $('.btn-view-customer').on('click', function() {
+      const name = $(this).data('name');
+      const email = $(this).data('email');
+      const phone = $(this).data('phone');
+      const joined = $(this).data('joined');
+      const orders = $(this).data('orders');
+      const spent = $(this).data('spent');
+      const address = $(this).data('address');
+
+      $('#modal-cust-name').text(name);
+      $('#modal-cust-email').text(email);
+      $('#modal-cust-phone').text(phone);
+      $('#modal-cust-joined').text(joined);
+      $('#modal-cust-orders').text(orders + ' orders');
+      $('#modal-cust-spent').text('₹' + spent);
+      $('#modal-cust-address').text(address);
+      $('#modal-cust-avatar').text(name.slice(0, 2).toUpperCase());
+    });
+  });
+</script>
+{% endblock %}

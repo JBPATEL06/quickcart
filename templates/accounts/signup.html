@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Account — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Centered Signup Card (Flowstep Screen 9) -->
+  <div class="qc-auth-card">
+    
+    <div class="text-center mb-4">
+      <div class="qc-logo-box mx-auto mb-3">
+        <i class="bi bi-person-plus"></i>
+      </div>
+      <h2 class="fw-bold fs-4 mb-1">Create your account</h2>
+      <p class="text-muted small">Sign up to securely continue to checkout and save your preferences</p>
+    </div>
+
+    <form method="POST" action="{% url 'accounts:signup' %}?next={{ next }}">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Full Name</label>
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-person"></i></span>
+          <input type="text" name="full_name" class="form-control border-start-0" placeholder="Maya Thompson" required>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Email address</label>
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-envelope"></i></span>
+          <input type="email" name="email" class="form-control border-start-0" placeholder="name@example.com" required>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Password</label>
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-lock"></i></span>
+          <input type="password" name="password" id="signup-password" class="form-control border-start-0 border-end-0" placeholder="••••••••" required>
+          <button type="button" class="input-group-text bg-transparent border-start-0 text-muted cursor-pointer" onclick="togglePasswordVisibility('signup-password')">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Confirm Password</label>
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-lock-fill"></i></span>
+          <input type="password" name="confirm_password" id="signup-confirm-password" class="form-control border-start-0 border-end-0" placeholder="••••••••" required>
+          <button type="button" class="input-group-text bg-transparent border-start-0 text-muted cursor-pointer" onclick="togglePasswordVisibility('signup-confirm-password')">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-qc-primary w-100 py-2 mt-2 rounded-pill fw-semibold justify-content-center">
+        Create Account
+      </button>
+
+      <div class="position-relative text-center my-4">
+        <hr class="m-0">
+        <span class="position-absolute top-50 start-50 translate-middle px-3 bg-white text-muted small" style="background: var(--bg-surface) !important;">or</span>
+      </div>
+
+      <button type="button" class="btn btn-qc-outline w-100 py-2 rounded-pill fw-semibold justify-content-center" onclick="showToast('Google OAuth placeholder clicked');">
+        <i class="bi bi-google me-2"></i> Continue with Google
+      </button>
+
+      <div class="text-center mt-4 small">
+        <span class="text-muted">Already have an account?</span>
+        <a href="{% url 'accounts:login' %}?next={{ next }}" class="fw-semibold text-dark text-decoration-underline ms-1">Log in</a>
+      </div>
+
+      <div class="text-center mt-3 pt-3 border-top">
+        <a href="{% url 'cart:cart_detail' %}" class="small text-muted text-decoration-none">
+          <i class="bi bi-arrow-left"></i> Back to guest cart
+        </a>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+</script>
+{% endblock %}

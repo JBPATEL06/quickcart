@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Contact Support — QuickCart{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Centered Support Form (Flowstep Screen 13) -->
+  <div class="qc-auth-card" style="max-width: 520px;">
+    
+    <div class="text-center mb-4">
+      <div class="qc-logo-box mx-auto mb-3">
+        <i class="bi bi-chat-heart"></i>
+      </div>
+      <h2 class="fw-bold fs-4 mb-1">Contact support</h2>
+      <p class="text-muted small">Tell us how we can help. Our support team will respond within 24 hours.</p>
+    </div>
+
+    <form method="POST" action="{% url 'support:contact' %}">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Your Name</label>
+        <input type="text" name="name" class="form-control" value="{% if user.is_authenticated %}{{ user.display_name }}{% endif %}" placeholder="Maya Thompson" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Email address</label>
+        <input type="email" name="email" class="form-control" value="{% if user.is_authenticated %}{{ user.email }}{% endif %}" placeholder="maya@example.com" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Order Number (Optional)</label>
+        <input type="text" name="order_number" class="form-control" value="{{ request.GET.order|default:'' }}" placeholder="e.g. QC-10482">
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label small fw-semibold">How can we help?</label>
+        <textarea name="message" class="form-control" rows="4" placeholder="Describe your question or issue in detail..." required></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-qc-primary w-100 py-3 rounded-pill fw-semibold justify-content-center">
+        Send Message <i class="bi bi-send ms-2"></i>
+      </button>
+
+      <div class="text-center mt-3 pt-3 border-top">
+        <a href="{% url 'help' %}" class="small text-muted text-decoration-none">
+          <i class="bi bi-question-circle me-1"></i> Frequently Asked Questions
+        </a>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+{% endblock %}

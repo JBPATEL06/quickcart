@@ -1,0 +1,84 @@
+<!-- Floating AI Assistant Widget -->
+<div id="qc-ai-widget-wrapper" style="position: fixed; bottom: 24px; right: 24px; z-index: 1050;">
+  
+  <!-- Floating Toggle Button -->
+  <button id="qc-chatbot-toggle-btn" class="btn btn-dark rounded-circle shadow-lg d-flex align-items-center justify-content-center border-2 border-white" style="width: 56px; height: 56px; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);" title="QuickCart AI Assistant">
+    <i class="bi bi-robot fs-4 text-white"></i>
+    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-light rounded-circle">
+      <span class="visually-hidden">AI Online</span>
+    </span>
+  </button>
+
+  <!-- Chatbot Drawer Window -->
+  <div id="qc-chatbot-window" class="card shadow-lg border-0 d-none" style="position: fixed; bottom: 90px; right: 24px; width: 380px; max-width: calc(100vw - 32px); height: 530px; max-height: calc(100vh - 120px); border-radius: var(--radius-xl); z-index: 1050; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-surface);">
+    
+    <!-- Chat Header -->
+    <div class="p-3 bg-dark text-white d-flex justify-content-between align-items-center flex-shrink-0">
+      <div class="d-flex align-items-center gap-2">
+        <div class="rounded-circle d-flex align-items-center justify-content-center bg-white text-dark" style="width: 32px; height: 32px;">
+          <i class="bi bi-stars fs-6"></i>
+        </div>
+        <div>
+          <h6 class="fw-bold mb-0" style="font-size: 0.92rem; color: #ffffff;">QuickCart AI</h6>
+          <span class="text-white-50" style="font-size: 0.72rem;"><i class="bi bi-circle-fill text-success me-1" style="font-size: 0.5rem;"></i>Product &amp; Support Assistant</span>
+        </div>
+      </div>
+      <button type="button" class="btn-close btn-close-white" id="qc-chatbot-close-btn" aria-label="Close"></button>
+    </div>
+
+    <!-- Quick Prompt Chips (Horizontal non-wrapping scroll) -->
+    <div class="qc-ai-chips-scroll flex-shrink-0">
+      <button type="button" class="qc-ai-chip-pill qc-ai-chip" data-prompt="Find wireless headphones under ₹2000">
+        🎧 Headphones &lt; ₹2000
+      </button>
+      <button type="button" class="qc-ai-chip-pill qc-ai-chip" data-prompt="What is your return policy?">
+        📦 Return Policy
+      </button>
+      <button type="button" class="qc-ai-chip-pill qc-ai-chip" data-prompt="How do I track my order?">
+        🚚 Track Order
+      </button>
+    </div>
+
+    <!-- Messages Body -->
+    <div id="qc-chat-messages" class="p-3 flex-grow-1 overflow-auto d-flex flex-column gap-3" style="font-size: 0.88rem; background: var(--bg-body);">
+      
+      <!-- Welcome Message -->
+      <div class="d-flex gap-2 align-items-start">
+        <div class="rounded-circle d-flex align-items-center justify-content-center bg-dark text-white flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.75rem;">
+          <i class="bi bi-robot"></i>
+        </div>
+        <div class="qc-chat-bubble-ai">
+          Hello! I'm your <strong>QuickCart AI Assistant</strong>. 🛍️<br><br>
+          I can help you discover products, compare specs within your budget, check order status, or explain our store policies. How can I help you today?
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Typing Indicator (Hidden by default) -->
+    <div id="qc-chat-typing" class="px-3 py-2 text-muted small d-none d-flex align-items-center gap-2 flex-shrink-0" style="font-size: 0.75rem; background: var(--bg-body);">
+      <div class="spinner-grow spinner-grow-sm text-secondary" role="status"></div>
+      <span>QuickCart AI is thinking...</span>
+    </div>
+
+    <!-- Chat Input Footer -->
+    <div class="p-2 border-top bg-surface flex-shrink-0">
+      <form id="qc-chat-form" class="d-flex gap-2">
+        <input 
+          type="text" 
+          id="qc-chat-input" 
+          class="form-control rounded-pill px-3" 
+          placeholder="Ask about products, budget, orders..." 
+          autocomplete="off"
+          style="font-size: 0.85rem;"
+          required
+        >
+        <button type="submit" class="btn btn-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px;">
+          <i class="bi bi-send-fill fs-6 text-white"></i>
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+</div>

@@ -1,0 +1,78 @@
+{% extends 'customer_base.html' %}
+{% load static %}
+
+{% block title %}Saved Items — QuickCart{% endblock %}
+
+{% block customer_content %}
+<div>
+  
+  <!-- Heading & Subtitle (Flowstep Screen 16) -->
+  <div class="mb-4">
+    <h1 class="fw-bold fs-3 mb-1">Saved items</h1>
+    <p class="text-muted small mb-0">Items you've bookmarked for later purchases</p>
+  </div>
+
+  <!-- Category Filter Chips (Only Saved Item Categories) -->
+  {% if saved_categories %}
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{% url 'customer:wishlist' %}?category=all" class="qc-pill-btn {% if current_category == 'all' or not current_category %}active{% endif %}">
+      All Items ({{ total_saved_count }})
+    </a>
+    {% for cat in saved_categories %}
+    <a href="{% url 'customer:wishlist' %}?category={{ cat.slug }}" class="qc-pill-btn {% if current_category == cat.slug %}active{% endif %}">
+      {{ cat.name }}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Saved Items Grid -->
+  {% if wishlist_items %}
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
+    {% for item in wishlist_items %}
+    <div class="col" id="wishlist-col-{{ item.product.id }}">
+      <div class="qc-product-card">
+        
+        <div class="qc-card-img-wrap">
+          <a href="{% url 'store:product_detail' item.product.slug %}">
+            <img src="{{ item.product.main_image }}" class="qc-card-img" alt="{{ item.product.name }}">
+          </a>
+          <button class="qc-card-heart active text-danger btn-wishlist-toggle" data-product-id="{{ item.product.id }}" title="Remove from wishlist">
+            <i class="bi bi-heart-fill"></i>
+          </button>
+        </div>
+
+        <div class="d-flex flex-column flex-grow-1">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">{{ item.product.category.name }}</span>
+            <span class="badge-trust"><i class="bi bi-shield-check"></i> {{ item.product.trust_score }}%</span>
+          </div>
+
+          <a href="{% url 'store:product_detail' item.product.slug %}" class="fw-semibold text-truncate mb-2 text-decoration-none" style="color: var(--text-main);">
+            {{ item.product.name }}
+          </a>
+
+          <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
+            <span class="fw-bold fs-5">₹{{ item.product.price }}</span>
+            <button class="btn btn-sm btn-qc-primary btn-add-cart" data-product-id="{{ item.product.id }}">
+              <i class="bi bi-bag-plus"></i> Add to Cart
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card border p-5 text-center" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <i class="bi bi-heart fs-1 text-muted mb-3 d-block"></i>
+    <h5 class="fw-bold">No saved items found</h5>
+    <p class="text-muted small">You haven't bookmarked any items yet. Click the heart icon on any product to save it here.</p>
+    <a href="{% url 'store:home' %}" class="btn btn-qc-primary btn-sm mx-auto mt-2">Discover Products</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

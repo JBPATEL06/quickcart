@@ -1,0 +1,117 @@
+{% extends 'customer_base.html' %}
+{% load static %}
+
+{% block title %}Account Settings — QuickCart{% endblock %}
+
+{% block customer_content %}
+<div>
+  
+  <!-- Heading & Subtitle (Flowstep Screen 18) -->
+  <div class="mb-4">
+    <h1 class="fw-bold fs-3 mb-1">Account settings</h1>
+    <p class="text-muted small mb-0">Update your personal details, password, and notification preferences</p>
+  </div>
+
+  <div class="d-flex flex-column gap-4">
+    
+    <!-- Personal Information Card -->
+    <div class="card border shadow-sm p-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+      <h5 class="fw-bold mb-3 fs-6"><i class="bi bi-person me-2"></i> Personal Information</h5>
+      
+      <form method="POST" action="{% url 'customer:settings' %}">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="personal">
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">First Name</label>
+            <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Last Name</label>
+            <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Email Address</label>
+            <input type="email" class="form-control bg-light text-muted" value="{{ user.email }}" disabled>
+            <span class="text-muted" style="font-size: 0.75rem;">Email cannot be changed directly</span>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Phone Number</label>
+            <input type="text" name="phone" class="form-control" value="{{ user.phone|default:'' }}" placeholder="+91 98765 43210">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-qc-primary btn-sm mt-3">
+          Save Changes
+        </button>
+      </form>
+    </div>
+
+    <!-- Password Card -->
+    <div class="card border shadow-sm p-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+      <h5 class="fw-bold mb-3 fs-6"><i class="bi bi-lock me-2"></i> Password</h5>
+      
+      <form method="POST" action="{% url 'customer:settings' %}">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="password">
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Current Password</label>
+            <input type="password" name="old_password" class="form-control" placeholder="••••••••" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">New Password</label>
+            <input type="password" name="new_password" class="form-control" placeholder="••••••••" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Confirm New Password</label>
+            <input type="password" name="confirm_password" class="form-control" placeholder="••••••••" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-qc-primary btn-sm mt-3">
+          Update Password
+        </button>
+      </form>
+    </div>
+
+    <!-- Preferences Card -->
+    <div class="card border shadow-sm p-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+      <h5 class="fw-bold mb-3 fs-6"><i class="bi bi-bell me-2"></i> Notification Preferences</h5>
+      
+      <form method="POST" action="{% url 'customer:settings' %}">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="preferences">
+
+        <div class="d-flex flex-column gap-3">
+          
+          <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
+            <div>
+              <label class="form-check-label fw-semibold small" for="pref-email">Order Status Notifications</label>
+              <div class="text-muted" style="font-size: 0.75rem;">Get instant email updates whenever your shipment status changes</div>
+            </div>
+            <input class="form-check-input ms-0" type="checkbox" name="order_updates" id="pref-email" {% if user.order_updates %}checked{% endif %}>
+          </div>
+
+          <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
+            <div>
+              <label class="form-check-label fw-semibold small" for="pref-deals">Promotions &amp; Discounts</label>
+              <div class="text-muted" style="font-size: 0.75rem;">Receive curated deals, price drops on wishlist items, and seasonal sales</div>
+            </div>
+            <input class="form-check-input ms-0" type="checkbox" name="marketing_emails" id="pref-deals" {% if user.marketing_emails %}checked{% endif %}>
+          </div>
+
+        </div>
+
+        <button type="submit" class="btn btn-qc-primary btn-sm mt-4">
+          Save Preferences
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

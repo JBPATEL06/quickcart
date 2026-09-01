@@ -1,0 +1,148 @@
+{% extends 'customer_base.html' %}
+{% load static %}
+
+{% block title %}Addresses — QuickCart{% endblock %}
+
+{% block customer_content %}
+<div>
+  
+  <!-- Heading & Add New Button (Flowstep Screen 17) -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="fw-bold fs-3 mb-1">Addresses</h1>
+      <p class="text-muted small mb-0">Manage your delivery and billing addresses</p>
+    </div>
+    <button class="btn btn-qc-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+      <i class="bi bi-plus-lg"></i> Add New Address
+    </button>
+  </div>
+
+  <!-- Address Cards Grid -->
+  {% if addresses %}
+  <div class="row row-cols-1 row-cols-md-2 g-3">
+    {% for addr in addresses %}
+    <div class="col">
+      <div class="card border p-4 h-100 position-relative shadow-sm" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+        
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge {% if addr.is_default %}bg-primary text-white{% else %}bg-secondary-subtle text-secondary{% endif %} rounded-pill px-3 py-1 small">
+              {{ addr.get_label_display }}
+            </span>
+            {% if addr.is_default %}
+            <span class="badge bg-success-subtle text-success rounded-pill small">Default Delivery</span>
+            {% endif %}
+          </div>
+
+          <div class="dropdown">
+            <button class="btn btn-sm btn-light rounded-circle p-1" data-bs-toggle="dropdown">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius: var(--radius-md);">
+              {% if not addr.is_default %}
+              <li>
+                <form method="POST" action="{% url 'customer:addresses' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="set_default">
+                  <input type="hidden" name="address_id" value="{{ addr.id }}">
+                  <button type="submit" class="dropdown-item small py-2"><i class="bi bi-check-circle me-2"></i> Set as Default</button>
+                </form>
+              </li>
+              {% endif %}
+              <li>
+                <form method="POST" action="{% url 'customer:addresses' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="address_id" value="{{ addr.id }}">
+                  <button type="submit" class="dropdown-item small py-2 text-danger"><i class="bi bi-trash3 me-2"></i> Delete</button>
+                </form>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fw-bold mb-1">{{ addr.recipient_name }}</div>
+        <p class="text-muted small mb-2">{{ addr.street_address }}<br>{{ addr.city }}, {{ addr.state }} - {{ addr.postal_code }}<br>{{ addr.country }}</p>
+        <div class="text-muted small mt-auto"><i class="bi bi-telephone me-1"></i> {{ addr.phone }}</div>
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card border p-5 text-center" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <i class="bi bi-geo-alt fs-1 text-muted mb-3 d-block"></i>
+    <h5 class="fw-bold">No saved addresses</h5>
+    <p class="text-muted small">Add your delivery address to speed up your checkout process.</p>
+    <button class="btn btn-qc-primary btn-sm mx-auto mt-2" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+      Add Address
+    </button>
+  </div>
+  {% endif %}
+
+  <!-- Add Address Modal -->
+  <div class="modal fade" id="addAddressModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold fs-6">Add New Delivery Address</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="POST" action="{% url 'customer:addresses' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add">
+          
+          <div class="modal-body p-4">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Recipient Name</label>
+                <input type="text" name="recipient_name" class="form-control" placeholder="Maya Thompson" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Phone Number</label>
+                <input type="text" name="phone" class="form-control" placeholder="+91 98765 43210" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Street Address</label>
+                <input type="text" name="street_address" class="form-control" placeholder="House / Flat No., Apartment, Street" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">City</label>
+                <input type="text" name="city" class="form-control" placeholder="Bengaluru" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">State</label>
+                <input type="text" name="state" class="form-control" placeholder="Karnataka" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold">Postal Code</label>
+                <input type="text" name="postal_code" class="form-control" placeholder="560034" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Address Tag</label>
+                <select name="label" class="form-select">
+                  <option value="home">Home</option>
+                  <option value="work">Work</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="is_default" id="modal-default-check">
+                  <label class="form-check-label small" for="modal-default-check">Set as default</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer border-top">
+            <button type="button" class="btn btn-qc-outline btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-qc-primary btn-sm">Save Address</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
