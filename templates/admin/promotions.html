@@ -6,22 +6,47 @@
 {% block admin_content %}
 <div>
   
-  <!-- Header Title & Controls (Flowstep Screen 25) -->
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
+  <!-- Header Title & Action Buttons -->
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-3">
     <div>
       <div class="text-muted small d-flex align-items-center gap-2 mb-1">
         <span>Admin panel</span>
         <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
         <span>Promotions</span>
       </div>
-      <h1 class="fw-bold fs-3 mb-1">Promotions &amp; Coupons ({{ coupons.count }})</h1>
-      <p class="text-muted small mb-0">Create and manage discounts, coupons, and seasonal campaigns</p>
+      <h1 class="fw-bold fs-3 mb-1">Promotions &amp; Discounts ({{ coupons.count }})</h1>
+      <p class="text-muted small mb-0">Create coupon codes or launch automatic storewide &amp; category discounts</p>
     </div>
 
     <button class="btn btn-qc-primary btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createPromoModal">
       <i class="bi bi-plus-lg"></i>
-      <span>Create promotion</span>
+      <span>Create Discount / Promotion</span>
     </button>
+  </div>
+
+  <!-- Dedicated Search Toolbar -->
+  <div class="card border p-3 mb-4 shadow-sm" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <form method="GET" class="row g-2 align-items-center justify-content-between">
+      <div class="col-12 col-md-6 col-lg-5">
+        <div class="position-relative">
+          <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+          <input type="text" name="q" value="{{ search_query|default:'' }}" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search code, campaign title, category...">
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4 d-flex align-items-center gap-2">
+        <button type="submit" class="btn btn-qc-primary btn-sm rounded-pill px-4 py-2">
+          <i class="bi bi-search me-1"></i> Search
+        </button>
+        {% if search_query %}
+        <a href="{% url 'admin_promotions' %}" class="btn btn-qc-outline btn-sm rounded-pill px-3 py-2" title="Clear search">
+          <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+        </a>
+        {% endif %}
+      </div>
+      <div class="col-12 col-lg-3 text-lg-end text-muted small ms-auto d-none d-lg-block">
+        Showing <strong>{{ coupons|length }}</strong> active campaigns
+      </div>
+    </form>
   </div>
 
   <!-- Promotion Cards Grid (Flowstep Screen 25) -->
@@ -31,12 +56,27 @@
     <div class="col">
       <div class="card border p-4 h-100 shadow-sm" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
         <div class="d-flex justify-content-between align-items-start mb-3">
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace fs-6">{{ coupon.code }}</span>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if coupon.is_auto_apply %}
+            <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace fs-6">
+              <i class="bi bi-lightning-charge-fill me-1"></i> Auto-Apply Discount
+            </span>
+            {% else %}
+            <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace fs-6">
+              <i class="bi bi-ticket-perforated me-1"></i> {{ coupon.code }}
+            </span>
+            {% endif %}
+            
             {% if coupon.is_active %}
             <span class="badge bg-success-subtle text-success rounded-pill px-2">Active</span>
             {% else %}
             <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">Inactive</span>
+            {% endif %}
+
+            {% if coupon.discount_scope == 'category' and coupon.category %}
+            <span class="badge bg-secondary text-white rounded-pill px-2">{{ coupon.category.name }}</span>
+            {% else %}
+            <span class="badge bg-light text-dark border rounded-pill px-2">Storewide</span>
             {% endif %}
           </div>
           
@@ -51,14 +91,17 @@
               data-type="{{ coupon.discount_type }}"
               data-value="{{ coupon.discount_value }}"
               data-min="{{ coupon.min_order_amount }}"
+              data-auto="{{ coupon.is_auto_apply|yesno:'true,false' }}"
+              data-scope="{{ coupon.discount_scope }}"
+              data-category="{% if coupon.category %}{{ coupon.category.id }}{% endif %}"
               data-active="{{ coupon.is_active|yesno:'true,false' }}"
-              title="Edit Coupon"
+              title="Edit Promotion"
             >
               <i class="bi bi-pencil"></i>
             </button>
-            <form method="POST" action="{% url 'admin_delete_promotion' coupon.id %}" onsubmit="return confirm('Delete coupon {{ coupon.code }}?');" class="d-inline">
+            <form method="POST" action="{% url 'admin_delete_promotion' coupon.id %}" onsubmit="return confirm('Delete discount promotion {{ coupon.code }}?');" class="d-inline">
               {% csrf_token %}
-              <button type="submit" class="btn btn-sm btn-light p-1 border text-danger" title="Delete Coupon">
+              <button type="submit" class="btn btn-sm btn-light p-1 border text-danger" title="Delete Promotion">
                 <i class="bi bi-trash"></i>
               </button>
             </form>
@@ -67,20 +110,21 @@
 
         <h5 class="fw-bold fs-6 mb-1">{{ coupon.title }}</h5>
         <p class="text-muted small mb-3">
-          {% if coupon.discount_type == 'percentage' %}
-          Applies {{ coupon.discount_value }}% discount on subtotal (Min spend: ₹{{ coupon.min_order_amount }}).
-          {% elif coupon.discount_type == 'fixed' %}
-          Flat ₹{{ coupon.discount_value }} off on orders above ₹{{ coupon.min_order_amount }}.
+          {% if coupon.is_auto_apply %}
+            <strong>⚡ Automatic:</strong> Applies automatically to eligible carts without entering a coupon code.
           {% else %}
-          Free shipping on all verified checkouts.
+            <strong>🎟️ Coupon Code:</strong> Customer must enter <code>{{ coupon.code }}</code> during checkout.
+          {% endif %}
+          {% if coupon.discount_scope == 'category' and coupon.category %}
+            Applies to <strong>{{ coupon.category.name }}</strong> products.
           {% endif %}
         </p>
 
         <div class="row g-2 pt-2 border-top small text-muted">
-          <div class="col-6"><strong>Discount:</strong> {% if coupon.discount_type == 'percentage' %}{{ coupon.discount_value }}%{% else %}₹{{ coupon.discount_value }}{% endif %}</div>
-          <div class="col-6"><strong>Type:</strong> {{ coupon.get_discount_type_display|default:coupon.discount_type|title }}</div>
-          <div class="col-6"><strong>Valid Until:</strong> {{ coupon.valid_until|date:"M d, Y" }}</div>
-          <div class="col-6"><strong>Status:</strong> {% if coupon.is_active %}Active Campaign{% else %}Disabled{% endif %}</div>
+          <div class="col-6"><strong>Discount:</strong> {% if coupon.discount_type == 'percentage' %}{{ coupon.discount_value }}%{% elif coupon.discount_type == 'fixed' %}₹{{ coupon.discount_value }}{% else %}Free Shipping{% endif %}</div>
+          <div class="col-6"><strong>Target:</strong> {% if coupon.discount_scope == 'category' and coupon.category %}{{ coupon.category.name }}{% else %}All Products{% endif %}</div>
+          <div class="col-6"><strong>Min Order:</strong> ₹{{ coupon.min_order_amount }}</div>
+          <div class="col-6"><strong>Mode:</strong> {% if coupon.is_auto_apply %}Auto-Applied{% else %}Coupon Code{% endif %}</div>
         </div>
       </div>
     </div>
@@ -89,7 +133,7 @@
       <div class="card border p-5 text-center rounded-4 text-muted">
         <i class="bi bi-tag fs-1 mb-2 d-block"></i>
         <h5 class="fw-bold">No active promotional campaigns</h5>
-        <p class="small">Click "Create promotion" above to launch a discount code.</p>
+        <p class="small">Click "Create Discount / Promotion" above to launch a discount or coupon code.</p>
       </div>
     </div>
     {% endfor %}
@@ -101,20 +145,42 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
         <div class="modal-header border-bottom">
-          <h5 class="modal-title fw-bold fs-6">Create New Promotional Campaign</h5>
+          <h5 class="modal-title fw-bold fs-6">Create New Promotion / Discount</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form method="POST" action="{% url 'admin_create_promotion' %}">
           {% csrf_token %}
           <div class="modal-body p-4">
+            
+            <!-- Application Mode: Coupon Code vs Auto-Apply -->
             <div class="mb-3">
+              <label class="form-label small fw-semibold">Discount Mode</label>
+              <div class="d-flex gap-3 p-2 rounded-3 border bg-light">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="promo_mode" id="mode-coupon" value="coupon" checked onchange="togglePromoModeCreate()">
+                  <label class="form-check-label small fw-semibold" for="mode-coupon">
+                    🎟️ Coupon Code (Code Required)
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="promo_mode" id="mode-auto" value="auto" onchange="togglePromoModeCreate()">
+                  <label class="form-check-label small fw-semibold" for="mode-auto">
+                    ⚡ Automatic Discount (No Code Needed)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3" id="create-code-wrap">
               <label class="form-label small fw-semibold">Coupon Code (Uppercase)</label>
-              <input type="text" name="code" class="form-control text-uppercase font-monospace" placeholder="e.g. FLASH30" required>
+              <input type="text" name="code" id="create-code-input" class="form-control text-uppercase font-monospace" placeholder="e.g. SUMMER25">
             </div>
+
             <div class="mb-3">
-              <label class="form-label small fw-semibold">Campaign Title</label>
-              <input type="text" name="title" class="form-control" placeholder="30% Flash Sale Discount" required>
+              <label class="form-label small fw-semibold">Promotion / Campaign Title</label>
+              <input type="text" name="title" class="form-control" placeholder="25% Summer Sale Discount" required>
             </div>
+
             <div class="row g-3 mb-3">
               <div class="col-6">
                 <label class="form-label small fw-semibold">Discount Type</label>
@@ -126,9 +192,28 @@
               </div>
               <div class="col-6">
                 <label class="form-label small fw-semibold">Discount Value</label>
-                <input type="number" step="0.01" name="discount_value" class="form-control" placeholder="30" required>
+                <input type="number" step="0.01" name="discount_value" class="form-control" placeholder="25" required>
               </div>
             </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-semibold">Apply Discount To</label>
+                <select name="discount_scope" id="create-scope-select" class="form-select" onchange="toggleScopeCreate()">
+                  <option value="all">Entire Cart / All Products</option>
+                  <option value="category">Specific Category</option>
+                </select>
+              </div>
+              <div class="col-6" id="create-category-wrap" style="display: none;">
+                <label class="form-label small fw-semibold">Select Category</label>
+                <select name="category_id" class="form-select">
+                  {% for cat in all_categories %}
+                  <option value="{{ cat.id }}">{{ cat.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
             <div class="mb-3">
               <label class="form-label small fw-semibold">Minimum Order Amount (₹)</label>
               <input type="number" step="0.01" name="min_order_amount" class="form-control" value="0">
@@ -148,20 +233,41 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
         <div class="modal-header border-bottom">
-          <h5 class="modal-title fw-bold fs-6">Edit Promotional Code</h5>
+          <h5 class="modal-title fw-bold fs-6">Edit Promotion / Discount</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form method="POST" id="editPromoForm" action="">
           {% csrf_token %}
           <div class="modal-body p-4">
+            
             <div class="mb-3">
-              <label class="form-label small fw-semibold">Coupon Code</label>
-              <input type="text" name="code" id="edit-promo-code" class="form-control text-uppercase font-monospace" required>
+              <label class="form-label small fw-semibold">Discount Mode</label>
+              <div class="d-flex gap-3 p-2 rounded-3 border bg-light">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="promo_mode" id="edit-mode-coupon" value="coupon" onchange="togglePromoModeEdit()">
+                  <label class="form-check-label small fw-semibold" for="edit-mode-coupon">
+                    🎟️ Coupon Code
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="promo_mode" id="edit-mode-auto" value="auto" onchange="togglePromoModeEdit()">
+                  <label class="form-check-label small fw-semibold" for="edit-mode-auto">
+                    ⚡ Automatic Discount
+                  </label>
+                </div>
+              </div>
             </div>
+
+            <div class="mb-3" id="edit-code-wrap">
+              <label class="form-label small fw-semibold">Coupon Code</label>
+              <input type="text" name="code" id="edit-promo-code" class="form-control text-uppercase font-monospace">
+            </div>
+
             <div class="mb-3">
               <label class="form-label small fw-semibold">Campaign Title</label>
               <input type="text" name="title" id="edit-promo-title" class="form-control" required>
             </div>
+
             <div class="row g-3 mb-3">
               <div class="col-6">
                 <label class="form-label small fw-semibold">Discount Type</label>
@@ -176,10 +282,30 @@
                 <input type="number" step="0.01" name="discount_value" id="edit-promo-value" class="form-control" required>
               </div>
             </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-semibold">Apply Discount To</label>
+                <select name="discount_scope" id="edit-scope-select" class="form-select" onchange="toggleScopeEdit()">
+                  <option value="all">Entire Cart / All Products</option>
+                  <option value="category">Specific Category</option>
+                </select>
+              </div>
+              <div class="col-6" id="edit-category-wrap" style="display: none;">
+                <label class="form-label small fw-semibold">Select Category</label>
+                <select name="category_id" id="edit-promo-category" class="form-select">
+                  {% for cat in all_categories %}
+                  <option value="{{ cat.id }}">{{ cat.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
             <div class="mb-3">
               <label class="form-label small fw-semibold">Minimum Order Amount (₹)</label>
               <input type="number" step="0.01" name="min_order_amount" id="edit-promo-min" class="form-control">
             </div>
+
             <div class="form-check form-switch mt-3">
               <input class="form-check-input" type="checkbox" name="is_active" id="edit-promo-active">
               <label class="form-check-label small fw-semibold" for="edit-promo-active">Active Promotion Status</label>
@@ -187,7 +313,7 @@
           </div>
           <div class="modal-footer border-top">
             <button type="button" class="btn btn-qc-outline btn-sm" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-qc-primary btn-sm">Update Coupon</button>
+            <button type="submit" class="btn btn-qc-primary btn-sm">Update Promotion</button>
           </div>
         </form>
       </div>
@@ -199,6 +325,42 @@
 
 {% block extra_js %}
 <script>
+  function togglePromoModeCreate() {
+    if ($('#mode-auto').is(':checked')) {
+      $('#create-code-wrap').hide();
+      $('#create-code-input').prop('required', false);
+    } else {
+      $('#create-code-wrap').show();
+      $('#create-code-input').prop('required', true);
+    }
+  }
+
+  function toggleScopeCreate() {
+    if ($('#create-scope-select').val() === 'category') {
+      $('#create-category-wrap').show();
+    } else {
+      $('#create-category-wrap').hide();
+    }
+  }
+
+  function togglePromoModeEdit() {
+    if ($('#edit-mode-auto').is(':checked')) {
+      $('#edit-code-wrap').hide();
+      $('#edit-promo-code').prop('required', false);
+    } else {
+      $('#edit-code-wrap').show();
+      $('#edit-promo-code').prop('required', true);
+    }
+  }
+
+  function toggleScopeEdit() {
+    if ($('#edit-scope-select').val() === 'category') {
+      $('#edit-category-wrap').show();
+    } else {
+      $('#edit-category-wrap').hide();
+    }
+  }
+
   $(document).ready(function() {
     $('.btn-edit-promo').on('click', function() {
       const id = $(this).data('id');
@@ -207,15 +369,30 @@
       const type = $(this).data('type');
       const val = $(this).data('value');
       const min = $(this).data('min');
+      const isAuto = $(this).data('auto');
+      const scope = $(this).data('scope') || 'all';
+      const categoryId = $(this).data('category');
       const active = $(this).data('active');
+
+      if (isAuto) {
+        $('#edit-mode-auto').prop('checked', true);
+      } else {
+        $('#edit-mode-coupon').prop('checked', true);
+      }
+      togglePromoModeEdit();
 
       $('#edit-promo-code').val(code);
       $('#edit-promo-title').val(title);
       $('#edit-promo-type').val(type);
       $('#edit-promo-value').val(val);
       $('#edit-promo-min').val(min);
-      $('#edit-promo-active').prop('checked', active);
+      $('#edit-scope-select').val(scope);
+      if (categoryId) {
+        $('#edit-promo-category').val(categoryId);
+      }
+      toggleScopeEdit();
 
+      $('#edit-promo-active').prop('checked', active);
       $('#editPromoForm').attr('action', `/admin-panel/promotions/edit/${id}/`);
     });
   });

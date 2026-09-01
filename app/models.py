@@ -515,6 +515,46 @@ class Cart(models.Model):
         total = max(0, float(self.subtotal) - float(self.discount_amount)) + self.estimated_shipping + self.estimated_tax
         return round(total, 2)
 
+    def recalculate_discounts(self):
+        # 1. Manual coupon code applied
+        if self.coupon and not self.coupon.is_auto_apply:
+            if self.coupon.discount_scope == 'category' and self.coupon.category:
+                cat_subtotal = sum(item.total_price for item in self.items.filter(product__category=self.coupon.category))
+                self.discount_amount = self.coupon.calculate_savings(cat_subtotal)
+            else:
+                self.discount_amount = self.coupon.calculate_savings(self.subtotal)
+            self.save()
+            return self.discount_amount
+
+        # 2. Check for automatic storewide/category promotions
+        auto_promos = Coupon.objects.filter(is_active=True, is_auto_apply=True)
+        best_savings = 0.0
+        best_promo = None
+        
+        for promo in auto_promos:
+            if promo.discount_scope == 'category' and promo.category:
+                cat_subtotal = sum(item.total_price for item in self.items.filter(product__category=promo.category))
+                savings = promo.calculate_savings(cat_subtotal)
+            else:
+                savings = promo.calculate_savings(self.subtotal)
+                
+            if savings > best_savings:
+                best_savings = savings
+                best_promo = promo
+
+        if best_promo and best_savings > 0:
+            self.coupon = best_promo
+            self.promo_code = best_promo.code
+            self.discount_amount = best_savings
+            self.save()
+        elif self.coupon and self.coupon.is_auto_apply:
+            self.coupon = None
+            self.promo_code = None
+            self.discount_amount = 0.0
+            self.save()
+
+        return self.discount_amount
+
     def __str__(self):
         return f"Cart #{self.id} ({self.user or self.session_key})"
 

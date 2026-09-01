@@ -6,24 +6,40 @@
 {% block admin_content %}
 <div>
   
-  <!-- Header Title & Controls (Flowstep Screen 24) -->
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
-    <div>
-      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
-        <span>Admin panel</span>
-        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-        <span>Customers</span>
-      </div>
-      <h1 class="fw-bold fs-3 mb-1">Customers ({{ total_count }})</h1>
-      <p class="text-muted small mb-0">View customer profiles, lifetime value, and order history</p>
+  <!-- Header Title -->
+  <div class="mb-4">
+    <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+      <span>Admin panel</span>
+      <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+      <span>Customers</span>
     </div>
+    <h1 class="fw-bold fs-3 mb-1">Customers ({{ total_count }})</h1>
+    <p class="text-muted small mb-0">View customer profiles, lifetime value, addresses, and order history</p>
+  </div>
 
-    <div class="d-flex align-items-center gap-3">
-      <form method="GET" class="position-relative">
-        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-        <input type="text" name="q" value="{{ search_query|default:'' }}" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search customer name, email...">
-      </form>
-    </div>
+  <!-- Dedicated Search Toolbar -->
+  <div class="card border p-3 mb-4 shadow-sm" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <form method="GET" class="row g-2 align-items-center justify-content-between">
+      <div class="col-12 col-md-6 col-lg-5">
+        <div class="position-relative">
+          <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+          <input type="text" name="q" value="{{ search_query|default:'' }}" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search customer name, email, phone...">
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4 d-flex align-items-center gap-2">
+        <button type="submit" class="btn btn-qc-primary btn-sm rounded-pill px-4 py-2">
+          <i class="bi bi-search me-1"></i> Search
+        </button>
+        {% if search_query %}
+        <a href="{% url 'admin_customers' %}" class="btn btn-qc-outline btn-sm rounded-pill px-3 py-2" title="Clear search">
+          <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+        </a>
+        {% endif %}
+      </div>
+      <div class="col-12 col-lg-3 text-lg-end text-muted small ms-auto d-none d-lg-block">
+        Showing <strong>{{ customers|length }}</strong> of {{ total_count }}
+      </div>
+    </form>
   </div>
 
   <!-- Customers Table (Flowstep Screen 24) -->

@@ -6,33 +6,48 @@
 {% block admin_content %}
 <div>
   
-  <!-- Header Title & Controls (Flowstep Screen 22) -->
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
-    <div>
-      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
-        <span>Admin panel</span>
-        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-        <span>Orders</span>
-      </div>
-      <h1 class="fw-bold fs-3 mb-1">Orders</h1>
-      <p class="text-muted small mb-0">Manage and track all customer orders and shipments</p>
+  <!-- Header Title -->
+  <div class="mb-4">
+    <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+      <span>Admin panel</span>
+      <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+      <span>Orders</span>
     </div>
-
-    <div class="d-flex align-items-center gap-2">
-      <form method="GET" class="position-relative">
-        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-        <input type="text" name="q" value="{{ search_query|default:'' }}" id="admin-orders-search" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search order ID, customer...">
-      </form>
-    </div>
+    <h1 class="fw-bold fs-3 mb-1">Orders</h1>
+    <p class="text-muted small mb-0">Manage and track all customer orders, payments, and shipments</p>
   </div>
 
-  <!-- Status Filter Tabs (Flowstep Screen 22) -->
-  <div class="d-flex flex-wrap gap-2 mb-4 p-1 rounded-pill" style="background: var(--bg-muted); width: fit-content;">
-    <a class="qc-pill-btn {% if current_status == 'all' or not current_status %}active{% endif %}" href="{% url 'admin_orders' %}?status=all">All ({{ orders|length }})</a>
-    <a class="qc-pill-btn {% if current_status == 'placed' %}active{% endif %}" href="{% url 'admin_orders' %}?status=placed">Pending</a>
-    <a class="qc-pill-btn {% if current_status == 'shipped' %}active{% endif %}" href="{% url 'admin_orders' %}?status=shipped">Shipped</a>
-    <a class="qc-pill-btn {% if current_status == 'delivered' %}active{% endif %}" href="{% url 'admin_orders' %}?status=delivered">Delivered</a>
-    <a class="qc-pill-btn {% if current_status == 'cancelled' %}active{% endif %}" href="{% url 'admin_orders' %}?status=cancelled">Cancelled</a>
+  <!-- Dedicated Search & Filter Toolbar -->
+  <div class="card border p-3 mb-4 shadow-sm" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <div class="row g-2 align-items-center justify-content-between">
+      
+      <!-- Search Form Column -->
+      <div class="col-12 col-md-6 col-lg-5">
+        <form method="GET" class="d-flex align-items-center gap-2">
+          <input type="hidden" name="status" value="{{ current_status|default:'all' }}">
+          <div class="position-relative flex-grow-1">
+            <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+            <input type="text" name="q" value="{{ search_query|default:'' }}" id="admin-orders-search" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search order ID, customer name...">
+          </div>
+          <button type="submit" class="btn btn-qc-primary btn-sm rounded-pill px-3 py-2">Search</button>
+          {% if search_query %}
+          <a href="{% url 'admin_orders' %}?status={{ current_status|default:'all' }}" class="btn btn-qc-outline btn-sm rounded-pill px-2 py-2" title="Clear search"><i class="bi bi-x"></i></a>
+          {% endif %}
+        </form>
+      </div>
+
+      <!-- Status Filter Tabs Column -->
+      <div class="col-12 col-md-6 col-lg-6 d-flex justify-content-md-end">
+        <div class="d-flex flex-wrap gap-1 p-1 rounded-pill border" style="background: var(--bg-muted);">
+          <a class="qc-pill-btn {% if current_status == 'all' or not current_status %}active{% endif %}" href="{% url 'admin_orders' %}?status=all{% if search_query %}&q={{ search_query }}{% endif %}">All</a>
+          <a class="qc-pill-btn {% if current_status == 'placed' %}active{% endif %}" href="{% url 'admin_orders' %}?status=placed{% if search_query %}&q={{ search_query }}{% endif %}">Pending</a>
+          <a class="qc-pill-btn {% if current_status == 'shipped' %}active{% endif %}" href="{% url 'admin_orders' %}?status=shipped{% if search_query %}&q={{ search_query }}{% endif %}">Shipped</a>
+          <a class="qc-pill-btn {% if current_status == 'delivered' %}active{% endif %}" href="{% url 'admin_orders' %}?status=delivered{% if search_query %}&q={{ search_query }}{% endif %}">Delivered</a>
+          <a class="qc-pill-btn {% if current_status == 'cancelled' %}active{% endif %}" href="{% url 'admin_orders' %}?status=cancelled{% if search_query %}&q={{ search_query }}{% endif %}">Cancelled</a>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <!-- Orders Data Table (Flowstep Screen 22) -->

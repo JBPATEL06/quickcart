@@ -1,18 +1,19 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Dashboard — QuickCart Admin{% endblock %}</title>
-  
+
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <!-- Master Stylesheet -->
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
-  
+
   <style>
     /* Admin Panel Layout Specific Styling (Flowstep Screen 21 Fidelity) */
     .qc-admin-layout {
@@ -50,10 +51,12 @@
       transition: all 0.15s ease;
       margin-bottom: 4px;
     }
+
     .qc-admin-nav-item:hover {
       background-color: var(--bg-muted);
       color: var(--text-main);
     }
+
     .qc-admin-nav-item.active {
       background-color: var(--primary);
       color: var(--primary-text) !important;
@@ -78,6 +81,7 @@
       width: 100%;
       position: relative;
     }
+
     .qc-admin-search input {
       background-color: var(--bg-muted);
       border: 1px solid transparent;
@@ -88,10 +92,12 @@
       color: var(--text-main);
       outline: none;
     }
+
     .qc-admin-search input:focus {
       background-color: var(--bg-surface);
       border-color: var(--primary);
     }
+
     .qc-admin-search i {
       position: absolute;
       left: 14px;
@@ -148,6 +154,7 @@
       height: 140px;
       margin: 0 auto;
     }
+
     .qc-donut-circle {
       width: 100%;
       height: 100%;
@@ -162,143 +169,163 @@
   </style>
   {% block extra_css %}{% endblock %}
 </head>
+
 <body>
 
-<div class="qc-admin-layout">
-  
-  <!-- Left Sidebar (Flowstep Screen 21) -->
-  <aside class="qc-admin-sidebar">
-    
-    <!-- Brand Logo & Subtitle -->
-    <a href="{% url 'admin_dashboard' %}" class="d-flex align-items-center gap-3 text-decoration-none mb-4 pb-2">
-      <div class="qc-logo-box">
-        <i class="bi bi-cart3"></i>
-      </div>
-      <div>
-        <div class="fw-bold fs-6 lh-1 tracking-tight" style="color: var(--text-main);">QuickCart</div>
-        <div class="text-muted small" style="font-size: 0.75rem;">Admin panel</div>
-      </div>
-    </a>
+  <div class="qc-admin-layout">
 
-    <!-- Navigation Menu -->
-    <nav class="d-flex flex-column mb-auto">
-      <a href="{% url 'admin_dashboard' %}" class="qc-admin-nav-item {% if active_admin_tab == 'dashboard' %}active{% endif %}">
-        <i class="bi bi-grid"></i>
-        <span>Dashboard</span>
-      </a>
-      <a href="{% url 'admin_orders' %}" class="qc-admin-nav-item {% if active_admin_tab == 'orders' %}active{% endif %}">
-        <i class="bi bi-cart"></i>
-        <span>Orders</span>
-      </a>
-      <a href="{% url 'admin_products' %}" class="qc-admin-nav-item {% if active_admin_tab == 'products' %}active{% endif %}">
-        <i class="bi bi-box-seam"></i>
-        <span>Products</span>
-      </a>
-      <a href="{% url 'admin_customers' %}" class="qc-admin-nav-item {% if active_admin_tab == 'customers' %}active{% endif %}">
-        <i class="bi bi-people"></i>
-        <span>Customers</span>
-      </a>
-      <a href="{% url 'admin_promotions' %}" class="qc-admin-nav-item {% if active_admin_tab == 'promotions' %}active{% endif %}">
-        <i class="bi bi-tag"></i>
-        <span>Promotions</span>
-      </a>
-      <a href="{% url 'admin_reports' %}" class="qc-admin-nav-item {% if active_admin_tab == 'reports' %}active{% endif %}">
-        <i class="bi bi-bar-chart"></i>
-        <span>Reports</span>
-      </a>
-      <a href="{% url 'admin_support' %}" class="qc-admin-nav-item {% if active_admin_tab == 'support' %}active{% endif %}">
-        <i class="bi bi-chat-left-dots"></i>
-        <span>Support</span>
-      </a>
-      <a href="{% url 'admin_settings' %}" class="qc-admin-nav-item {% if active_admin_tab == 'settings' %}active{% endif %}">
-        <i class="bi bi-gear"></i>
-        <span>Settings</span>
-      </a>
-    </nav>
+    <!-- Left Sidebar (Flowstep Screen 21) -->
+    <aside class="qc-admin-sidebar">
 
-    <!-- Signed-in Admin Account Profile at bottom of sidebar -->
-    <div class="pt-3 border-top d-flex align-items-center gap-2">
-      <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold small" style="width: 36px; height: 36px; background: var(--bg-muted); color: var(--text-main);">
-        AD
-      </div>
-      <div class="min-w-0 flex-grow-1">
-        <div class="fw-semibold text-truncate small">Alex Morgan</div>
-        <div class="text-muted text-truncate" style="font-size: 0.725rem;">admin@quickcart.com</div>
-      </div>
-      <i class="bi bi-three-dots text-muted"></i>
-    </div>
+      <!-- Brand Logo & Subtitle -->
+      <a href="{% url 'admin_dashboard' %}" class="d-flex align-items-center gap-3 text-decoration-none mb-4 pb-2">
+        <div class="qc-logo-box">
+          <i class="bi bi-cart3"></i>
+        </div>
+        <div>
+          <div class="fw-bold fs-6 lh-1 tracking-tight" style="color: var(--text-main);">QuickCart</div>
+          <div class="text-muted small" style="font-size: 0.75rem;">Admin panel</div>
+        </div>
+      </a>
 
-  </aside>
+      <!-- Navigation Menu -->
+      <nav class="d-flex flex-column mb-auto">
+        <a href="{% url 'admin_dashboard' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'dashboard' %}active{% endif %}">
+          <i class="bi bi-grid"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="{% url 'admin_orders' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'orders' %}active{% endif %}">
+          <i class="bi bi-cart"></i>
+          <span>Orders</span>
+        </a>
+        <a href="{% url 'admin_products' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'products' %}active{% endif %}">
+          <i class="bi bi-box-seam"></i>
+          <span>Products</span>
+        </a>
+        <a href="{% url 'admin_customers' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'customers' %}active{% endif %}">
+          <i class="bi bi-people"></i>
+          <span>Customers</span>
+        </a>
+        <a href="{% url 'admin_promotions' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'promotions' %}active{% endif %}">
+          <i class="bi bi-tag"></i>
+          <span>Promotions</span>
+        </a>
+        <a href="{% url 'admin_reports' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'reports' %}active{% endif %}">
+          <i class="bi bi-bar-chart"></i>
+          <span>Reports</span>
+        </a>
+        <a href="{% url 'admin_support' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'support' %}active{% endif %}">
+          <i class="bi bi-chat-left-dots"></i>
+          <span>Support</span>
+        </a>
+        <a href="{% url 'admin_settings' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'settings' %}active{% endif %}">
+          <i class="bi bi-gear"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
 
-  <!-- Main View Area -->
-  <div class="d-flex flex-column flex-grow-1 min-w-0">
-    
-    <!-- Top Admin Header -->
-    <header class="qc-admin-header">
-      
-      <!-- Global Admin Search -->
-      <div class="qc-admin-search">
-        <i class="bi bi-search"></i>
-        <input type="text" placeholder="Search orders, products, customers..." id="admin-global-search">
+      <!-- Signed-in Admin Account Profile at bottom of sidebar -->
+      <div class="pt-3 border-top d-flex align-items-center gap-2">
+        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold small"
+          style="width: 36px; height: 36px; background: var(--bg-muted); color: var(--text-main);">
+          AD
+        </div>
+        <div class="min-w-0 flex-grow-1">
+          <div class="fw-semibold text-truncate small">Alex Morgan</div>
+          <div class="text-muted text-truncate" style="font-size: 0.725rem;">admin@quickcart.com</div>
+        </div>
+
       </div>
 
-      <!-- Header Actions (Theme Toggle & Account Dropdown) -->
-      <div class="d-flex align-items-center gap-4">
-        
-        <!-- Theme Toggle -->
-        <div class="d-flex align-items-center gap-1 text-muted">
-          <i class="bi bi-sun" style="font-size: 0.9rem;"></i>
-          <div class="form-check form-switch m-0 p-0" style="min-height: auto;">
-            <input class="form-check-input ms-0" type="checkbox" id="theme-switch" style="cursor: pointer;">
+    </aside>
+
+    <!-- Main View Area -->
+    <div class="d-flex flex-column flex-grow-1 min-w-0">
+
+      <!-- Top Admin Header -->
+      <header class="qc-admin-header">
+
+        <!-- Admin Portal Status Indicator -->
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace small">
+            <i class="bi bi-shield-lock-fill me-1"></i> Admin Portal
+          </span>
+          <span class="text-muted small d-none d-md-inline">Management Suite</span>
+        </div>
+
+        <!-- Header Actions (Theme Toggle & Account Dropdown) -->
+        <div class="d-flex align-items-center gap-4">
+
+          <!-- Theme Toggle -->
+          <div class="d-flex align-items-center gap-1 text-muted">
+            <i class="bi bi-sun" style="font-size: 0.9rem;"></i>
+            <div class="form-check form-switch m-0 p-0" style="min-height: auto;">
+              <input class="form-check-input ms-0" type="checkbox" id="theme-switch" style="cursor: pointer;">
+            </div>
+            <i class="bi bi-moon" style="font-size: 0.85rem;"></i>
           </div>
-          <i class="bi bi-moon" style="font-size: 0.85rem;"></i>
+
+          <!-- Admin Account Dropdown -->
+          <div class="dropdown">
+            <button class="btn btn-qc-outline btn-sm py-1 px-3 dropdown-toggle d-flex align-items-center gap-2"
+              type="button" data-bs-toggle="dropdown">
+              <span class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+                style="width: 24px; height: 24px; font-size: 0.65rem; background: var(--bg-muted); color: var(--text-main);">AM</span>
+              <span class="small fw-semibold">Admin account</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2"
+              style="border-radius: var(--radius-md); background: var(--bg-surface);">
+              <li><a class="dropdown-item py-2 small" href="{% url 'admin_settings' %}"><i
+                    class="bi bi-person-gear me-2"></i> Account Settings</a></li>
+              <li>
+                <hr class="dropdown-divider my-1">
+              </li>
+              <li><a class="dropdown-item py-2 small text-danger" href="{% url 'accounts:logout' %}"><i
+                    class="bi bi-box-arrow-right me-2"></i> Sign Out</a></li>
+            </ul>
+          </div>
+
         </div>
 
-        <!-- Admin Account Dropdown -->
-        <div class="dropdown">
-          <button class="btn btn-qc-outline btn-sm py-1 px-3 dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown">
-            <span class="rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 24px; height: 24px; font-size: 0.65rem; background: var(--bg-muted); color: var(--text-main);">AM</span>
-            <span class="small fw-semibold">Admin account</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="border-radius: var(--radius-md); background: var(--bg-surface);">
-            <li><a class="dropdown-item py-2 small" href="{% url 'admin_settings' %}"><i class="bi bi-person-gear me-2"></i> Account Settings</a></li>
-            <li><hr class="dropdown-divider my-1"></li>
-            <li><a class="dropdown-item py-2 small text-danger" href="{% url 'accounts:logout' %}"><i class="bi bi-box-arrow-right me-2"></i> Sign Out</a></li>
-          </ul>
+      </header>
+
+      <!-- Content Block -->
+      <main class="qc-admin-content">
+        {% block admin_content %}{% endblock %}
+      </main>
+
+      <!-- Admin Footer -->
+      <footer class="qc-admin-footer">
+        <div class="d-flex align-items-center gap-4">
+          <span>© 2026 QuickCart</span>
+          <a href="{% url 'support:contact' %}" class="text-muted text-decoration-none">Help & Support</a>
+          <a href="#" class="text-muted text-decoration-none">Terms & Privacy</a>
         </div>
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-shield-check"></i>
+          <span>Secure admin environment</span>
+        </div>
+      </footer>
 
-      </div>
-
-    </header>
-
-    <!-- Content Block -->
-    <main class="qc-admin-content">
-      {% block admin_content %}{% endblock %}
-    </main>
-
-    <!-- Admin Footer -->
-    <footer class="qc-admin-footer">
-      <div class="d-flex align-items-center gap-4">
-        <span>© 2026 QuickCart</span>
-        <a href="{% url 'support:contact' %}" class="text-muted text-decoration-none">Help & Support</a>
-        <a href="#" class="text-muted text-decoration-none">Terms & Privacy</a>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-shield-check"></i>
-        <span>Secure admin environment</span>
-      </div>
-    </footer>
+    </div>
 
   </div>
 
-</div>
-
-<!-- Scripts -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'js/main.js' %}"></script>
-{% block extra_js %}{% endblock %}
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{% static 'js/main.js' %}"></script>
+  {% block extra_js %}{% endblock %}
 
 </body>
+
 </html>

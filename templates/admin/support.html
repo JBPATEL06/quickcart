@@ -6,28 +6,51 @@
 {% block admin_content %}
 <div>
   
-  <!-- Header Title & Controls -->
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
-    <div>
-      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
-        <span>Admin panel</span>
-        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-        <span>Support Inquiries</span>
-      </div>
-      <h1 class="fw-bold fs-3 mb-1">Customer Support ({{ total_count }})</h1>
-      <p class="text-muted small mb-0">Review and resolve customer inquiries and support tickets</p>
+  <!-- Header Title -->
+  <div class="mb-4">
+    <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+      <span>Admin panel</span>
+      <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+      <span>Support Inquiries</span>
     </div>
+    <h1 class="fw-bold fs-3 mb-1">Customer Support ({{ total_count }})</h1>
+    <p class="text-muted small mb-0">Review and resolve customer inquiries and support tickets</p>
+  </div>
 
-    <div class="d-flex align-items-center gap-2">
-      <a href="{% url 'admin_support' %}?status=all" class="qc-pill-btn {% if current_status == 'all' or not current_status %}active{% endif %}">
-        All Messages
-      </a>
-      <a href="{% url 'admin_support' %}?status=pending" class="qc-pill-btn {% if current_status == 'pending' %}active{% endif %}">
-        Pending
-      </a>
-      <a href="{% url 'admin_support' %}?status=resolved" class="qc-pill-btn {% if current_status == 'resolved' %}active{% endif %}">
-        Resolved
-      </a>
+  <!-- Dedicated Search & Filter Toolbar -->
+  <div class="card border p-3 mb-4 shadow-sm" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <div class="row g-2 align-items-center justify-content-between">
+      
+      <!-- Search Form Column -->
+      <div class="col-12 col-md-6 col-lg-5">
+        <form method="GET" class="d-flex align-items-center gap-2">
+          <input type="hidden" name="status" value="{{ current_status|default:'all' }}">
+          <div class="position-relative flex-grow-1">
+            <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+            <input type="text" name="q" value="{{ search_query|default:'' }}" class="form-control form-control-sm rounded-pill ps-5 py-2" placeholder="Search customer, order, message...">
+          </div>
+          <button type="submit" class="btn btn-qc-primary btn-sm rounded-pill px-3 py-2">Search</button>
+          {% if search_query %}
+          <a href="{% url 'admin_support' %}?status={{ current_status|default:'all' }}" class="btn btn-qc-outline btn-sm rounded-pill px-2 py-2" title="Clear search"><i class="bi bi-x"></i></a>
+          {% endif %}
+        </form>
+      </div>
+
+      <!-- Status Tabs Column -->
+      <div class="col-12 col-md-6 col-lg-6 d-flex justify-content-md-end">
+        <div class="d-flex flex-wrap gap-1 p-1 rounded-pill border" style="background: var(--bg-muted);">
+          <a href="{% url 'admin_support' %}?status=all{% if search_query %}&q={{ search_query }}{% endif %}" class="qc-pill-btn {% if current_status == 'all' or not current_status %}active{% endif %}">
+            All Messages
+          </a>
+          <a href="{% url 'admin_support' %}?status=pending{% if search_query %}&q={{ search_query }}{% endif %}" class="qc-pill-btn {% if current_status == 'pending' %}active{% endif %}">
+            Pending
+          </a>
+          <a href="{% url 'admin_support' %}?status=resolved{% if search_query %}&q={{ search_query }}{% endif %}" class="qc-pill-btn {% if current_status == 'resolved' %}active{% endif %}">
+            Resolved
+          </a>
+        </div>
+      </div>
+
     </div>
   </div>
 

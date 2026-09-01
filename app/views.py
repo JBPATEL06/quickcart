@@ -149,6 +149,7 @@ def compare_view(request):
 
 def cart_detail_view(request):
     cart = get_or_create_cart(request)
+    cart.recalculate_discounts()
     return render(request, 'cart/cart.html', {'cart': cart})
 
 
@@ -167,12 +168,15 @@ def api_add_to_cart(request):
     else:
         item.quantity = quantity
     item.save()
+    cart.recalculate_discounts()
 
     return JsonResponse({
         'success': True,
         'message': f"Added {product.name} to cart.",
         'total_items': cart.total_items,
         'subtotal': str(cart.subtotal),
+        'discount_amount': str(cart.discount_amount),
+        'grand_total': f"{cart.grand_total:.2f}",
     })
 
 
@@ -196,9 +200,7 @@ def api_update_cart(request):
             item.delete()
             item = None
 
-    if cart.promo_code:
-        cart.discount_amount = cart.calculate_discount(cart.promo_code)
-        cart.save()
+    cart.recalculate_discounts()
 
     return JsonResponse({
         'success': True,
@@ -220,10 +222,7 @@ def api_remove_from_cart(request):
     item_id = request.POST.get('item_id')
     cart = get_or_create_cart(request)
     CartItem.objects.filter(id=item_id, cart=cart).delete()
-
-    if cart.promo_code:
-        cart.discount_amount = cart.calculate_discount(cart.promo_code)
-        cart.save()
+    cart.recalculate_discounts()
 
     return JsonResponse({
         'success': True,
@@ -246,31 +245,53 @@ def api_apply_promo(request):
     if not code:
         return JsonResponse({'success': False, 'message': 'Please enter a valid promo code.'}, status=400)
 
+    # Check Database Coupon first
+    coupon = Coupon.objects.filter(code=code, is_active=True).first()
+    
+    if coupon:
+        cart.coupon = coupon
+        cart.promo_code = coupon.code
+        discount = cart.recalculate_discounts()
+        return JsonResponse({
+            'success': True,
+            'message': f"Success! {coupon.title} applied.",
+            'promo_code': coupon.code,
+            'discount_amount': str(discount),
+            'subtotal': str(cart.subtotal),
+            'shipping': str(cart.estimated_shipping),
+            'tax': str(cart.estimated_tax),
+            'grand_total': f"{cart.grand_total:.2f}",
+        })
+
+    # Hardcoded fallbacks
     valid_promos = {
-        'QUICK20': '20% discount applied!',
-        'WELCOME10': '10% welcome discount applied!',
-        'FLAT50': '₹50 flat discount applied!',
-        'FREESHIP': 'Free delivery unlocked!',
+        'QUICK20': ('20% discount applied!', 'percentage', 20),
+        'WELCOME10': ('10% welcome discount applied!', 'percentage', 10),
+        'FLAT50': ('₹50 flat discount applied!', 'fixed', 50),
+        'FREESHIP': ('Free delivery unlocked!', 'free_shipping', 0),
     }
 
-    if code not in valid_promos:
-        return JsonResponse({'success': False, 'message': 'Invalid promo code. Try QUICK20 or WELCOME10.'}, status=400)
+    if code in valid_promos:
+        msg, dtype, val = valid_promos[code]
+        dummy_coupon, _ = Coupon.objects.get_or_create(
+            code=code,
+            defaults={'title': msg, 'discount_type': dtype, 'discount_value': val, 'is_active': True}
+        )
+        cart.coupon = dummy_coupon
+        cart.promo_code = code
+        discount = cart.recalculate_discounts()
+        return JsonResponse({
+            'success': True,
+            'message': f"Success! {msg}",
+            'promo_code': code,
+            'discount_amount': str(discount),
+            'subtotal': str(cart.subtotal),
+            'shipping': str(cart.estimated_shipping),
+            'tax': str(cart.estimated_tax),
+            'grand_total': f"{cart.grand_total:.2f}",
+        })
 
-    discount = cart.calculate_discount(code)
-    cart.promo_code = code
-    cart.discount_amount = discount
-    cart.save()
-
-    return JsonResponse({
-        'success': True,
-        'message': f"Success! {valid_promos[code]}",
-        'promo_code': code,
-        'discount_amount': str(discount),
-        'subtotal': str(cart.subtotal),
-        'shipping': str(cart.estimated_shipping),
-        'tax': str(cart.estimated_tax),
-        'grand_total': f"{cart.grand_total:.2f}",
-    })
+    return JsonResponse({'success': False, 'message': 'Invalid promo code. Please check code or try another.'}, status=400)
 
 
 def api_remove_promo(request):
@@ -278,9 +299,11 @@ def api_remove_promo(request):
         return JsonResponse({'error': 'Invalid method'}, status=405)
 
     cart = get_or_create_cart(request)
+    cart.coupon = None
     cart.promo_code = None
     cart.discount_amount = 0
     cart.save()
+    cart.recalculate_discounts()
 
     return JsonResponse({
         'success': True,
@@ -1093,10 +1116,20 @@ def admin_customers_view(request):
 
 
 def admin_promotions_view(request):
+    search_q = request.GET.get('q', '').strip()
     coupons = Coupon.objects.all().order_by('-created_at')
+    if search_q:
+        coupons = coupons.filter(
+            Q(code__icontains=search_q) |
+            Q(title__icontains=search_q) |
+            Q(category__name__icontains=search_q)
+        )
+    all_categories = Category.objects.all()
     return render(request, 'admin/promotions.html', {
         'active_admin_tab': 'promotions',
         'coupons': coupons,
+        'all_categories': all_categories,
+        'search_query': search_q,
     })
 
 
@@ -1107,19 +1140,30 @@ def admin_create_promotion(request):
         discount_type = request.POST.get('discount_type', 'percentage')
         discount_value = request.POST.get('discount_value', 10)
         min_order = request.POST.get('min_order_amount', 0)
-        
+        is_auto = (request.POST.get('is_auto_apply') == 'on' or request.POST.get('promo_mode') == 'auto')
+        discount_scope = request.POST.get('discount_scope', 'all')
+        category_id = request.POST.get('category_id')
+        category = Category.objects.filter(id=category_id).first() if (discount_scope == 'category' and category_id) else None
+
+        if not code and is_auto:
+            from django.utils.crypto import get_random_string
+            code = f"AUTO_{get_random_string(6).upper()}"
+
         if code and discount_value:
             Coupon.objects.create(
                 code=code,
-                title=title or f"{code} Special Discount",
+                title=title or f"{code} Discount",
                 discount_type=discount_type,
                 discount_value=discount_value,
                 min_order_amount=min_order or 0,
-                valid_from=timezone.now(),
+                is_auto_apply=is_auto,
+                discount_scope=discount_scope,
+                category=category,
                 valid_until=timezone.now() + timezone.timedelta(days=90),
                 is_active=True
             )
-            messages.success(request, f"Promotion code '{code}' created successfully!")
+            mode_text = "Automatic Discount" if is_auto else f"Coupon Code '{code}'"
+            messages.success(request, f"{mode_text} created successfully!")
     return redirect('admin_promotions')
 
 
@@ -1131,6 +1175,15 @@ def admin_edit_promotion(request, coupon_id):
         coupon.discount_type = request.POST.get('discount_type', coupon.discount_type)
         coupon.discount_value = request.POST.get('discount_value', coupon.discount_value)
         coupon.min_order_amount = request.POST.get('min_order_amount', coupon.min_order_amount)
+        coupon.is_auto_apply = (request.POST.get('is_auto_apply') == 'on' or request.POST.get('promo_mode') == 'auto')
+        coupon.discount_scope = request.POST.get('discount_scope', 'all')
+        
+        category_id = request.POST.get('category_id')
+        if coupon.discount_scope == 'category' and category_id:
+            coupon.category = Category.objects.filter(id=category_id).first()
+        else:
+            coupon.category = None
+
         coupon.is_active = (request.POST.get('is_active') == 'on')
         coupon.save()
         messages.success(request, f"Promotion '{coupon.code}' updated successfully!")
@@ -1185,6 +1238,7 @@ def admin_settings_view(request):
 
 def admin_support_view(request):
     status_filter = request.GET.get('status', 'all')
+    search_q = request.GET.get('q', '').strip()
     msgs = SupportMessage.objects.all().order_by('-created_at')
 
     # Seed demo support inquiries if empty
@@ -1205,6 +1259,14 @@ def admin_support_view(request):
         )
         msgs = SupportMessage.objects.all().order_by('-created_at')
 
+    if search_q:
+        msgs = msgs.filter(
+            Q(name__icontains=search_q) |
+            Q(email__icontains=search_q) |
+            Q(order_number__icontains=search_q) |
+            Q(message__icontains=search_q)
+        )
+
     if status_filter == 'pending':
         msgs = msgs.filter(is_resolved=False)
     elif status_filter == 'resolved':
@@ -1220,6 +1282,7 @@ def admin_support_view(request):
         'page_obj': page_obj,
         'total_count': paginator.count,
         'current_status': status_filter,
+        'search_query': search_q,
     })
 
 
