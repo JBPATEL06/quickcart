@@ -33,7 +33,13 @@
         <h5 class="fw-bold mb-0 fs-6">Shipment Tracking</h5>
         <div class="text-muted small">Carrier: <strong>{{ order.carrier }}</strong> · Tracking ID: <strong>{{ order.tracking_number|default:'TRK-98319204' }}</strong></div>
       </div>
-      <span class="badge bg-light text-dark border small">{{ order.estimated_delivery }}</span>
+      {% if order.status == 'delivered' %}
+      <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill small">
+        <i class="bi bi-check-circle-fill me-1"></i> Delivered Successfully
+      </span>
+      {% else %}
+      <span class="badge bg-light text-dark border small">Estimated Delivery: {{ order.estimated_delivery }}</span>
+      {% endif %}
     </div>
 
     <!-- Stepper Visual -->
@@ -99,7 +105,14 @@
                 <div class="text-muted small">Quantity: {{ item.quantity }} · Unit: ₹{{ item.price }}</div>
               </div>
             </div>
-            <div class="fw-bold small">₹{{ item.total_price }}</div>
+            <div class="d-flex flex-column align-items-end gap-1">
+              <div class="fw-bold small">₹{{ item.total_price }}</div>
+              {% if order.status == 'delivered' and item.product %}
+              <a href="{% url 'store:product_detail' item.product.slug %}#tab-reviews" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-1" style="font-size: 0.75rem;">
+                <i class="bi bi-star-fill text-warning me-1"></i> Write / Edit Review
+              </a>
+              {% endif %}
+            </div>
           </div>
           {% endfor %}
         </div>

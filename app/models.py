@@ -3,6 +3,7 @@ import random
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils.text import slugify
+from django.utils import timezone
 from django.conf import settings
 
 # ==========================================
@@ -204,19 +205,25 @@ class Product(models.Model):
     def discount_percent(self):
         if self.original_price and self.original_price > self.price:
             return int(((self.original_price - self.price) / self.original_price) * 100)
-        return 0
+    @property
+    def real_review_count(self):
+        """Returns the actual number of reviews in database"""
+        return self.reviews.count()
 
     def recalculate_trust_score(self):
-        """Recompute trust score from non-flagged reviews"""
+        """Recompute trust score and sync review_count from non-flagged reviews"""
         clean_reviews = self.reviews.filter(flags__status__in=['approved', None]).exclude(flags__status='flagged_fake')
+        total_cnt = self.reviews.count()
         if clean_reviews.exists():
             avg_rating = clean_reviews.aggregate(models.Avg('rating'))['rating__avg'] or 4.5
-            # Trust score formula: weighted by verified percentage and average rating
             score = min(100, int((avg_rating / 5.0) * 80 + 18))
             self.trust_score = score
             self.rating = round(avg_rating, 1)
-            self.review_count = clean_reviews.count()
+            self.review_count = total_cnt
             self.save(update_fields=['trust_score', 'rating', 'review_count'])
+        else:
+            self.review_count = total_cnt
+            self.save(update_fields=['review_count'])
 
     def __str__(self):
         return f"{self.name} (₹{self.price})"
@@ -439,6 +446,7 @@ class Coupon(models.Model):
     
     # Auto-apply vs Coupon-based
     is_auto_apply = models.BooleanField(default=False, help_text="If True, auto-applies without needing coupon code")
+    is_ai_exposed = models.BooleanField(default=False, help_text="If True, AI can suggest and expose this coupon code to customers")
     discount_scope = models.CharField(max_length=20, choices=DISCOUNT_SCOPES, default='all')
     category = models.ForeignKey('Category', on_delete=models.SET_NULL, null=True, blank=True, related_name='promotions')
 
@@ -499,11 +507,57 @@ class Cart(models.Model):
     def subtotal(self):
         return sum(item.total_price for item in self.items.all())
 
+    def get_shipping_fee(self, destination_pincode=None, destination_city=None):
+        if self.promo_code == 'FREESHIP' or (self.coupon and self.coupon.discount_type == 'free_shipping'):
+            return 0.0
+        if self.subtotal == 0 and not destination_pincode:
+            return 0.0
+
+        # Evaluate active ShippingRules in priority order
+        active_rules = ShippingRule.objects.filter(is_active=True).order_by('priority', 'id')
+        cart_products = [item.product for item in self.items.all()]
+        cart_categories = [item.product.category for item in self.items.all()]
+        subtotal_val = float(self.subtotal)
+
+        cleaned_pin = str(destination_pincode).strip() if destination_pincode else ""
+
+        for rule in active_rules:
+            # 1. PIN Code specific rule (Highest geographical precedence)
+            if rule.rule_type == 'pincode' and rule.pincode:
+                allowed_pins = [p.strip() for p in rule.pincode.replace(';', ',').split(',') if p.strip()]
+                if cleaned_pin and cleaned_pin in allowed_pins:
+                    if subtotal_val >= float(rule.min_order_amount):
+                        return float(rule.delivery_fee)
+
+            # 2. Product-specific rule
+            elif rule.rule_type == 'product' and rule.product in cart_products:
+                if subtotal_val >= float(rule.min_order_amount):
+                    return float(rule.delivery_fee)
+
+            # 3. Category-specific rule
+            elif rule.rule_type == 'category' and rule.category in cart_categories:
+                if subtotal_val >= float(rule.min_order_amount):
+                    return float(rule.delivery_fee)
+
+            # 4. City / location-specific rule (Fallback)
+            elif rule.rule_type == 'city' and rule.city:
+                if destination_city and rule.city.strip().lower() in destination_city.strip().lower():
+                    if subtotal_val >= float(rule.min_order_amount):
+                        return float(rule.delivery_fee)
+
+            # 5. Storewide rule
+            elif rule.rule_type == 'storewide':
+                if subtotal_val >= float(rule.min_order_amount):
+                    return float(rule.delivery_fee)
+
+        # Fallback default: free above ₹999, else ₹50
+        if subtotal_val >= 999:
+            return 0.0
+        return 50.0
+
     @property
     def estimated_shipping(self):
-        if self.promo_code == 'FREESHIP' or (self.coupon and self.coupon.discount_type == 'free_shipping') or self.subtotal > 999 or self.subtotal == 0:
-            return 0
-        return 50
+        return round(self.get_shipping_fee(), 2)
 
     @property
     def estimated_tax(self):
@@ -593,6 +647,7 @@ class Order(models.Model):
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='placed')
     recipient_name = models.CharField(max_length=100)
     shipping_address = models.TextField()
+    postal_code = models.CharField(max_length=20, blank=True, help_text="Delivery PIN / Postal code")
     phone = models.CharField(max_length=20)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -602,6 +657,9 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=50, default='Card ending in 4242')
     is_paid = models.BooleanField(default=True)
+    gateway_transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
     tracking_number = models.CharField(max_length=100, blank=True)
     carrier = models.CharField(max_length=100, default='QuickCart Express')
     estimated_delivery = models.CharField(max_length=100, default='3-5 business days')
@@ -812,13 +870,56 @@ class Notification(models.Model):
 # 11. CMS & HOMEPAGE BANNERS
 # ==========================================
 
+class ShippingRule(models.Model):
+    RULE_TYPES = [
+        ('storewide', 'Storewide Threshold'),
+        ('pincode', 'Postal Code / PIN Code Specific'),
+        ('category', 'Category-Specific'),
+        ('product', 'Product-Specific'),
+        ('city', 'City / Location-Specific (Fallback)'),
+    ]
+
+    label = models.CharField(max_length=150, help_text="e.g. Free delivery on PIN 560034 or Karnataka Express")
+    rule_type = models.CharField(max_length=20, choices=RULE_TYPES, default='storewide')
+    min_order_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Minimum order value for this rule")
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Delivery fee (0 for FREE delivery)")
+    
+    # Specific targets
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, null=True, blank=True, related_name='shipping_rules')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, null=True, blank=True, related_name='shipping_rules')
+    pincode = models.CharField(max_length=255, blank=True, help_text="e.g. 560034, 560001, 110001 (or comma-separated PINs)")
+    city = models.CharField(max_length=100, blank=True, help_text="e.g. Bengaluru, Mumbai (leave empty for any city)")
+    
+    priority = models.PositiveIntegerField(default=10, help_text="Lower number = evaluated first")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['priority', 'id']
+
+    def __str__(self):
+        fee_str = "FREE" if self.delivery_fee == 0 else f"₹{self.delivery_fee}"
+        return f"[{self.get_rule_type_display()}] {self.label} — {fee_str}"
+
+
 class HomepageBanner(models.Model):
+    BANNER_TYPES = [
+        ('hero', 'Main Hero Carousel'),
+        ('product_spotlight', 'Featured Product Spotlight'),
+        ('category_promo', 'Category Promotion Banner'),
+        ('announcement', 'Top Announcement Bar'),
+    ]
+
     title = models.CharField(max_length=150)
     subtitle = models.CharField(max_length=255, blank=True)
     badge_text = models.CharField(max_length=50, default='Limited Offer')
-    image_url = models.CharField(max_length=500)
+    image_url = models.CharField(max_length=500, blank=True)
+    image_file = models.ImageField(upload_to='banners/', blank=True, null=True)
     cta_text = models.CharField(max_length=50, default='Shop Now')
     cta_link = models.CharField(max_length=255, default='/category/electronics/')
+    banner_type = models.CharField(max_length=30, choices=BANNER_TYPES, default='hero')
+    linked_product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='promotional_banners')
+    linked_category = models.ForeignKey('Category', on_delete=models.SET_NULL, null=True, blank=True, related_name='promotional_banners')
     order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -826,8 +927,17 @@ class HomepageBanner(models.Model):
     class Meta:
         ordering = ['order', '-created_at']
 
+    @property
+    def get_image_url(self):
+        if self.image_file:
+            try:
+                return self.image_file.url
+            except Exception:
+                pass
+        return self.image_url or "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&q=80"
+
     def __str__(self):
-        return self.title
+        return f"{self.title} ({self.get_banner_type_display()})"
 
 
 class SupportMessage(models.Model):
@@ -863,3 +973,127 @@ class FAQItem(models.Model):
 
     def __str__(self):
         return self.question
+
+
+# ==========================================
+# 12. GENAI PROVIDER CONFIGURATION
+# ==========================================
+
+class AIProviderConfig(models.Model):
+    PROVIDER_CHOICES = [
+        ('local', 'Built-in Local AI Engine (Heuristic / No API Key Needed)'),
+        ('openai', 'OpenAI (GPT-4o, GPT-4o-mini, o3-mini)'),
+        ('openrouter', 'OpenRouter (Multi-model Router)'),
+        ('gemini', 'Google Gemini (Gemini 2.0 Flash, Gemini 1.5 Pro)'),
+        ('claude', 'Anthropic Claude (Claude 3.5 Sonnet, Claude 3.5 Haiku)'),
+        ('groq', 'Groq (Llama 3.3 70B, Mixtral 8x7B)'),
+        ('grok', 'xAI Grok (Grok-2, Grok-beta)'),
+    ]
+
+    VERIFY_STATUS = [
+        ('unverified', 'Not Verified'),
+        ('valid', 'Valid / Operational'),
+        ('invalid', 'Invalid Key'),
+        ('rate_limited', 'Rate Limit Exceeded'),
+        ('expired', 'Key Expired'),
+    ]
+
+    FEATURE_SCOPE = [
+        ('all', 'All AI Features (Compare, Chatbot, Search Rescue)'),
+        ('compare', 'Product Comparison Only'),
+        ('chatbot', 'AI Shopping Assistant Chat Only'),
+        ('search', 'Complex Search Rescue Only'),
+    ]
+
+    provider = models.CharField(max_length=30, choices=PROVIDER_CHOICES, default='local')
+    api_key = models.CharField(max_length=255, blank=True, help_text="API secret key for selected provider")
+    model_name = models.CharField(max_length=100, default='default', help_text="Specific model identifier (e.g. gpt-4o, gemini-2.0-flash, claude-3-5-sonnet-20241022)")
+    temperature = models.DecimalField(max_digits=3, decimal_places=2, default=0.7)
+    
+    # Multi-Key Priority & Fallback System
+    priority = models.PositiveIntegerField(default=1, help_text="Priority rank: 1 is Primary, 2 is 1st Fallback, 3 is 2nd Fallback...")
+    feature_scope = models.CharField(max_length=100, default='all', help_text="When to use this provider (comma-separated or 'all')")
+    
+    # Expiry, Limits, Usage & Verification
+    expiry_date = models.DateField(null=True, blank=True, help_text="Optional key expiration date")
+    usage_count = models.PositiveIntegerField(default=0, help_text="Total successful API calls made")
+    rate_limit_hit = models.BooleanField(default=False, help_text="True if 429 rate limit was encountered")
+    verification_status = models.CharField(max_length=20, choices=VERIFY_STATUS, default='unverified')
+    last_error = models.TextField(blank=True, help_text="Last error message or status from provider")
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['priority', '-updated_at']
+
+    def __str__(self):
+        return f"#{self.priority} [{self.get_provider_display()}] ({self.model_name}) - {self.feature_scope_display_text}"
+
+    @property
+    def feature_scope_list(self):
+        """Returns list of selected features e.g. ['compare', 'chatbot'] or ['all']"""
+        if not self.feature_scope:
+            return ['all']
+        scopes = [s.strip() for s in self.feature_scope.split(',') if s.strip()]
+        return scopes if scopes else ['all']
+
+    @property
+    def feature_scope_display_text(self):
+        names = {
+            'all': 'All AI Features',
+            'compare': 'Product Comparison',
+            'chatbot': 'Shopping Assistant Chat',
+            'search': 'Search Intent Rescue'
+        }
+        scopes = self.feature_scope_list
+        if 'all' in scopes or not scopes:
+            return 'All AI Features'
+        return ', '.join([names.get(s, s.title()) for s in scopes])
+
+    def applies_to_feature(self, feature='all'):
+        scopes = self.feature_scope_list
+        return 'all' in scopes or feature == 'all' or feature in scopes
+
+    @property
+    def is_expired(self):
+        if self.expiry_date and timezone.now().date() > self.expiry_date:
+            return True
+        return False
+
+    @property
+    def masked_key(self):
+        if not self.api_key:
+            return "No key set"
+        if len(self.api_key) <= 8:
+            return "••••••••"
+        return f"{self.api_key[:4]}••••••••{self.api_key[-4:]}"
+
+    @classmethod
+    def get_providers_for_feature(cls, feature='all'):
+        """
+        Returns active, non-expired provider configs sorted by priority (1 = Primary, 2 = 1st Fallback...)
+        supporting multi-feature selections.
+        """
+        qs = cls.objects.filter(is_active=True).order_by('priority', 'id')
+        
+        valid_configs = []
+        for c in qs:
+            if not c.is_expired and c.applies_to_feature(feature):
+                valid_configs.append(c)
+        return valid_configs
+
+    @classmethod
+    def get_active_config(cls):
+        providers = cls.get_providers_for_feature('all')
+        if providers:
+            return providers[0]
+        # Default fallback to local
+        local = cls.objects.filter(provider='local').first()
+        if not local:
+            local = cls.objects.create(provider='local', model_name='built-in-local', priority=99, is_active=True)
+        return local
+
+

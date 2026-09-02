@@ -1,0 +1,150 @@
+================================================================================
+                    QUICKCART - CODEBASE & FEATURE GUIDE
+================================================================================
+
+This document gives you a clear overview of the project folder structure and
+points directly to where each feature's code is located.
+
+
+1. PROJECT FILE STRUCTURE
+--------------------------------------------------------------------------------
+quickcart/
+├── manage.py                -> Main command line runner for Django commands
+├── requirements.txt         -> List of required Python packages
+├── quickcart_project/       -> Django root settings and configuration
+│   ├── settings.py          -> Database, installed apps, static/media settings
+│   ├── urls.py              -> Main URL router pointing to app.urls
+│   └── __init__.py          -> PyMySQL connector setup for MySQL compatibility
+│
+├── app/                     -> Main application code (all views, models, APIs)
+│   ├── models.py            -> All database tables (Users, Products, Orders, etc.)
+│   ├── views.py             -> Web page controllers & AJAX handlers
+│   ├── api_views.py         -> REST API endpoints (/api/v1/...)
+│   ├── ai_services.py       -> AI logic (Fake reviews, price prediction, assistant)
+│   ├── urls.py              -> URL paths for all pages and APIs
+│   ├── middleware.py        -> User role checks & page redirect security
+│   ├── context_processors.py-> Common data sent to all pages (cart count, theme)
+│   ├── admin.py             -> Django built-in admin configuration
+│   └── tests.py             -> Integration test suite
+│
+├── templates/               -> HTML template files
+│   ├── base.html            -> Main site layout (Header, Search Bar, Footer)
+│   ├── customer_base.html   -> Customer account layout with sidebar
+│   ├── accounts/            -> Login, Signup, Forgot Password pages
+│   ├── store/               -> Home, Category listing, Search, Product Detail, Compare
+│   ├── cart/                -> Cart view, Checkout, Payment Gateway
+│   ├── customer/            -> My Orders, Wishlist, Addresses, Settings
+│   ├── admin/               -> Admin Dashboard, Products, Orders, Coupons, Support
+│   ├── pages/               -> About Us, Public Help & FAQ, Terms & Privacy
+│   └── components/          -> Floating AI Assistant widget, mobile navigation
+│
+├── static/                  -> CSS stylesheets & JavaScript files
+│   ├── css/style.css        -> Complete website styling (Light & Dark theme)
+│   └── js/                  -> main.js (Theme toggle, voice search, cart actions)
+│                               ai_chatbot.js (AI shopping assistant popup)
+│
+├── scripts/                 -> Data population scripts
+│   ├── seed_data.py         -> Seeds demo products, reviews, categories, orders
+│   └── mass_seed.py         -> Seeds larger test data set for stress testing
+│
+└── instructions/            -> Developer guides & setup instructions
+    ├── setup.txt            -> Step-by-step guide to run the project
+    └── code_guide.txt       -> This feature and code location map
+
+
+2. WHERE IS EACH FEATURE'S CODE LOCATED?
+--------------------------------------------------------------------------------
+
+- USER LOGIN, SIGNUP & ROLES (Admin / Customer / Guest)
+    * Models:     app/models.py (User, AdminRole, AdminAuditLog)
+    * Views:      app/views.py (login_view, signup_view, logout_view)
+    * Security:   app/middleware.py (QuickCartAuthRoleMiddleware)
+    * Templates:  templates/accounts/ (login.html, signup.html)
+
+- PRODUCT BROWSING & CATEGORIES
+    * Models:     app/models.py (Category, Product, ProductImage)
+    * Views:      app/views.py (home_view, category_view, product_detail_view)
+    * Templates:  templates/store/ (home.html, category.html, product_detail.html)
+
+- SMART SEARCH & AJAX AUTOCOMPLETE
+    * Views:      app/views.py (search_view, api_search_autocomplete)
+    * Search AI:  app/ai_services.py (execute_smart_catalog_search)
+    * Templates:  templates/store/search.html
+    * JavaScript: static/js/main.js
+
+- VOICE SEARCH (SPEECH-TO-TEXT)
+    * Trigger:    templates/base.html (Microphone button in search bar)
+    * JavaScript: static/js/main.js (initVoiceSearch using Web Speech API)
+    * API:        app/api_views.py (api_voice_search)
+
+- SIDE-BY-SIDE PRODUCT COMPARISON (2-3 ITEMS)
+    * Models:     app/models.py (ComparisonAttribute, ProductSpecification)
+    * Views:      app/views.py (compare_view)
+    * Templates:  templates/store/compare.html
+    * JavaScript: static/js/main.js (initProductComparison & sticky compare dock)
+
+- AI FAKE REVIEW DETECTION & TRUST SCORE
+    * Models:     app/models.py (Review, ReviewFlag)
+    * AI Logic:   app/ai_services.py (classify_review_content, recalculate_product_trust_score)
+    * API:        app/api_views.py (api_create_review)
+    * UI Display: templates/store/product_detail.html
+
+- AI SHOPPING ASSISTANT (CHATBOT)
+    * Models:     app/models.py (AssistantConversation, AssistantMessage)
+    * AI Logic:   app/ai_services.py (process_assistant_chat_message)
+    * UI Widget:  templates/components/ai_chatbot.html
+    * JavaScript: static/js/ai_chatbot.js
+    * API:        app/api_views.py (api_assistant_message)
+
+- AI PRICE TREND PREDICTION & PRICE DROP ALERTS
+    * Models:     app/models.py (PriceHistory, PricePrediction, PriceDropAlert)
+    * AI Logic:   app/ai_services.py (generate_price_prediction_forecast)
+    * UI Display: templates/store/product_detail.html (Price trend chart)
+    * API:        app/api_views.py (api_price_history)
+
+- NEARBY LOCAL SELLER FINDER (HAVERSINE DISTANCE)
+    * Models:     app/models.py (Seller, SellerInventory)
+    * Geo Logic:  app/ai_services.py (calculate_haversine_distance)
+    * API:        app/api_views.py (api_nearby_sellers)
+
+- SHOPPING CART & PROMO CODE ENGINE
+    * Models:     app/models.py (Cart, CartItem, Coupon)
+    * Views:      app/views.py (cart_detail_view, api_add_to_cart, api_apply_promo)
+    * Templates:  templates/cart/cart.html
+    * JavaScript: static/js/main.js (AJAX quantity steppers & promo discount badge)
+
+- CHECKOUT & PAYMENT GATEWAY SIMULATION
+    * Models:     app/models.py (Address, Order, OrderItem)
+    * Views:      app/views.py (checkout_view, payment_gateway_view)
+    * Templates:  templates/cart/checkout.html, templates/cart/payment.html
+
+- ORDER HISTORY & LIVE DELIVERY TRACKING
+    * Models:     app/models.py (Order, OrderTrackingEvent)
+    * Views:      app/views.py (orders_view, order_detail_view)
+    * Templates:  templates/customer/orders.html, templates/customer/order_detail.html
+
+- CUSTOMER PORTAL (WISHLIST, ADDRESSES, SETTINGS)
+    * Views:      app/views.py (wishlist_view, addresses_view, settings_view)
+    * Templates:  templates/customer/ (wishlist.html, addresses.html, settings.html)
+
+- ADMIN MANAGEMENT PANEL
+    * Dashboard:  app/views.py (admin_dashboard_view) -> templates/admin/dashboard.html
+    * Products:   app/views.py (admin_products_view)  -> templates/admin/products.html
+    * Orders:     app/views.py (admin_orders_view)    -> templates/admin/orders.html
+    * Shipping:   app/views.py (admin_shipping_view)  -> templates/admin/shipping.html
+    * Banners:    app/views.py (admin_banners_view)   -> templates/admin/banners.html
+    * Support:    app/views.py (admin_support_view)   -> templates/admin/support.html
+    * Coupons:    app/views.py (admin_promotions_view)-> templates/admin/promotions.html
+    * Reports:    app/views.py (admin_reports_view)   -> templates/admin/reports.html
+    * Settings:   app/views.py (admin_settings_view)  -> templates/admin/settings.html (AI Provider Key Manager)
+
+- GENAI PRODUCT COMPARISON WITH GENUI
+    * Models:     app/models.py (Product, Category, ShippingRule)
+    * AI Engine:  app/ai_services.py (generate_compare_analysis)
+    * API:        app/api_views.py (api_compare_ai)
+    * UI Display: templates/store/compare.html (Interactive GenUI comparison card)
+
+- REST API ENDPOINTS (/api/v1/...)
+    * Code File:  app/api_views.py
+    * URL Routes: app/urls.py
+================================================================================

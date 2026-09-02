@@ -32,6 +32,41 @@
     <button type="button" class="btn-close btn-close-white" onclick="$('#export-success-alert').addClass('d-none');"></button>
   </div>
 
+  <!-- AI Provider Warning Banners -->
+  {% if ai_config.provider != 'local' %}
+    {% if ai_config.rate_limit_hit %}
+    <div class="alert alert-danger d-flex align-items-center justify-content-between py-2 px-3 mb-4 rounded-3 small shadow-sm border-danger">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-octagon-fill text-danger fs-5"></i>
+        <div>
+          <strong>AI Quota / Rate Limit Hit (429)!</strong> Your {{ ai_config.get_provider_display }} API key hit rate limits. QuickCart automatically switched to the built-in local engine to keep all features running seamlessly.
+        </div>
+      </div>
+      <a href="{% url 'admin_settings' %}" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1">Manage Key</a>
+    </div>
+    {% elif ai_config.is_expired %}
+    <div class="alert alert-warning d-flex align-items-center justify-content-between py-2 px-3 mb-4 rounded-3 small shadow-sm border-warning">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-calendar-x-fill text-warning fs-5"></i>
+        <div>
+          <strong>AI Key Expired!</strong> Your {{ ai_config.get_provider_display }} key expired on {{ ai_config.expiry_date }}. QuickCart is currently using the local engine.
+        </div>
+      </div>
+      <a href="{% url 'admin_settings' %}" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 py-1">Renew Key</a>
+    </div>
+    {% elif ai_config.verification_status == 'invalid' %}
+    <div class="alert alert-danger d-flex align-items-center justify-content-between py-2 px-3 mb-4 rounded-3 small shadow-sm border-danger">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-shield-x text-danger fs-5"></i>
+        <div>
+          <strong>Invalid AI Key!</strong> The configured API key for {{ ai_config.get_provider_display }} failed authentication ({{ ai_config.last_error }}).
+        </div>
+      </div>
+      <a href="{% url 'admin_settings' %}" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1">Update Key</a>
+    </div>
+    {% endif %}
+  {% endif %}
+
   <!-- 4 KPI Metric Cards (Flowstep Screen 21) -->
   <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4">
     

@@ -1,0 +1,155 @@
+          <!-- User Review Form (Only for Verified Buyers with Delivered Status) -->
+          <div class="mb-4">
+            {% if request.user.is_authenticated %}
+              {% if can_review %}
+                <div class="card border p-4 shadow-sm" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h5 class="fw-bold fs-6 mb-1">
+                        {% if user_review %}
+                        <i class="bi bi-pencil-square text-primary me-1"></i> Edit Your Verified Review
+                        {% else %}
+                        <i class="bi bi-patch-check-fill text-success me-1"></i> Write a Verified Customer Review
+                        {% endif %}
+                      </h5>
+                      <p class="text-muted small mb-0">
+                        Package safely delivered to your address. Share your honest feedback with other shoppers.
+                      </p>
+                    </div>
+                    {% if user_review %}
+                    <form method="POST" action="{% url 'delete_review' user_review.id %}" onsubmit="return confirm('Are you sure you want to delete your review?');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                        <i class="bi bi-trash me-1"></i> Delete Review
+                      </button>
+                    </form>
+                    {% endif %}
+                  </div>
+
+                  <form method="POST" action="{% url 'submit_review' product.id %}">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                      <div class="col-md-8">
+                        <label class="form-label small fw-semibold">Review Headline / Summary</label>
+                        <input type="text" name="title" class="form-control form-control-sm" placeholder="e.g. Fantastic sound clarity and great battery life" value="{{ user_review.title|default:'' }}" required>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Rating (1 to 5 Stars)</label>
+                        <select name="rating" class="form-select form-select-sm" required>
+                          <option value="5" {% if user_review.rating == 5 or not user_review %}selected{% endif %}>⭐⭐⭐⭐⭐ (5 - Outstanding)</option>
+                          <option value="4" {% if user_review.rating == 4 %}selected{% endif %}>⭐⭐⭐⭐ (4 - Very Good)</option>
+                          <option value="3" {% if user_review.rating == 3 %}selected{% endif %}>⭐⭐⭐ (3 - Average)</option>
+                          <option value="2" {% if user_review.rating == 2 %}selected{% endif %}>⭐⭐ (2 - Below Average)</option>
+                          <option value="1" {% if user_review.rating == 1 %}selected{% endif %}>⭐ (1 - Poor)</option>
+                        </select>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label small fw-semibold">Your Experience</label>
+                        <textarea name="content" rows="3" class="form-control form-control-sm" placeholder="Write details about product quality, build, usability..." required>{{ user_review.content|default:'' }}</textarea>
+                      </div>
+                      <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-qc-primary btn-sm rounded-pill px-4">
+                          {% if user_review %}Update Review{% else %}Publish Review{% endif %}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              {% else %}
+                <div class="alert alert-light border d-flex align-items-center gap-3 p-3 mb-3" style="border-radius: var(--radius-md);">
+                  <i class="bi bi-shield-lock-fill text-muted fs-4"></i>
+                  <div>
+                    <div class="fw-semibold small">Verified Purchases Only</div>
+                    <div class="text-muted small">Only customers who have received delivery of this product to their address are eligible to write or manage reviews.</div>
+                  </div>
+                </div>
+              {% endif %}
+            {% else %}
+              <div class="alert alert-light border d-flex align-items-center justify-content-between p-3 mb-3" style="border-radius: var(--radius-md);">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-shield-check text-success fs-5"></i>
+                  <span class="small text-muted">Have you received delivery of this product? Log in to leave a verified review.</span>
+                </div>
+                <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-qc-outline btn-sm rounded-pill px-3">Sign In</a>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Reviews Filter Toolbar -->
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 pb-2 border-bottom gap-2">
+            <div class="small text-muted">
+              Filter customer ratings:
+            </div>
+            <div class="d-flex flex-wrap gap-1 p-1 rounded-pill border" style="background: var(--bg-muted);">
+              <button type="button" class="qc-pill-btn {% if current_review_rating == 'all' or not current_review_rating %}active{% endif %}" onclick="filterReviewsAjax('all', 1)">
+                All ({{ total_reviews_count }})
+              </button>
+              <button type="button" class="qc-pill-btn {% if current_review_rating == 'high' %}active{% endif %}" onclick="filterReviewsAjax('high', 1)">
+                <i class="bi bi-star-fill text-warning me-1"></i> 4–5 High ({{ high_review_count }})
+              </button>
+              <button type="button" class="qc-pill-btn {% if current_review_rating == 'mid' %}active{% endif %}" onclick="filterReviewsAjax('mid', 1)">
+                <i class="bi bi-star-half text-warning me-1"></i> Mid 3★ ({{ mid_review_count }})
+              </button>
+              <button type="button" class="qc-pill-btn {% if current_review_rating == 'low' %}active{% endif %}" onclick="filterReviewsAjax('low', 1)">
+                <i class="bi bi-star text-muted me-1"></i> Low 1–2★ ({{ low_review_count }})
+              </button>
+            </div>
+          </div>
+
+          <!-- Reviews Grid -->
+          <div class="row g-3">
+            {% for rev in reviews %}
+            <div class="col-md-6">
+              <div class="card border p-3 h-100" style="border-radius: var(--radius-md);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-semibold small">{{ rev.title }}</span>
+                  <span class="badge-trust"><i class="bi bi-shield-check"></i> {{ rev.trust_tag }}</span>
+                </div>
+                <div class="d-flex text-warning small mb-2">
+                  {% for i in "12345" %}
+                    {% if forloop.counter <= rev.rating %}
+                      <i class="bi bi-star-fill"></i>
+                    {% else %}
+                      <i class="bi bi-star text-muted opacity-50"></i>
+                    {% endif %}
+                  {% endfor %}
+                  <span class="ms-2 small text-muted">({{ rev.rating }}/5)</span>
+                </div>
+                <p class="text-muted small mb-2">“{{ rev.content }}”</p>
+                <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.75rem;">
+                  <span>By {{ rev.author_name }} · Verified Purchase</span>
+                  <span>{{ rev.created_at|date:"M d, Y" }}</span>
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="col-12 py-4 text-center text-muted">
+              <i class="bi bi-chat-heart fs-3 d-block mb-2"></i>
+              No reviews found matching this rating filter.
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Reviews Pagination -->
+          {% if review_page_obj.has_other_pages %}
+          <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light mt-3 rounded">
+            <span class="small text-muted">Showing page {{ review_page_obj.number }} of {{ review_page_obj.paginator.num_pages }}</span>
+            <nav aria-label="Product reviews pagination">
+              <ul class="pagination pagination-sm mb-0">
+                {% if review_page_obj.has_previous %}
+                <li class="page-item"><button type="button" class="page-link" onclick="filterReviewsAjax('{{ current_review_rating }}', {{ review_page_obj.previous_page_number }})">« Previous</button></li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">« Previous</span></li>
+                {% endif %}
+
+                <li class="page-item active"><span class="page-link">{{ review_page_obj.number }}</span></li>
+
+                {% if review_page_obj.has_next %}
+                <li class="page-item"><button type="button" class="page-link" onclick="filterReviewsAjax('{{ current_review_rating }}', {{ review_page_obj.next_page_number }})">Next »</button></li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Next »</span></li>
+                {% endif %}
+              </ul>
+            </nav>
+          </div>
+          {% endif %}

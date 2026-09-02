@@ -23,7 +23,8 @@ from .models import (
 from .ai_services import (
     classify_review_content, predict_product_price_trend,
     parse_shopping_intent_and_rank, get_nearby_sellers_for_product,
-    send_notification, log_user_activity, get_personalized_recommendations
+    send_notification, log_user_activity, get_personalized_recommendations,
+    generate_compare_analysis
 )
 
 # Helper: JSON Response Envelope
@@ -621,6 +622,37 @@ def api_assistant_message(request):
         })
     except Exception as e:
         return api_response(error={'code': 'ASSISTANT_ERROR', 'message': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_compare_ai(request):
+    """
+    GenAI Comparison Endpoint.
+    Accepts product_ids list and returns context-aware comparison analysis.
+    """
+    try:
+        data = json.loads(request.body) if request.body else {}
+        product_ids = data.get('product_ids', [])
+        if not product_ids:
+            return api_response(error={'code': 'MISSING_PARAM', 'message': 'product_ids list is required.'}, status=400)
+
+        # Get user cart
+        cart = None
+        if request.user.is_authenticated:
+            cart = Cart.objects.filter(user=request.user).first()
+        else:
+            session_key = request.session.session_key
+            if session_key:
+                cart = Cart.objects.filter(session_key=session_key).first()
+
+        result = generate_compare_analysis(product_ids, user=request.user, cart=cart)
+        if 'error' in result:
+            return api_response(error={'code': 'COMPARE_ERROR', 'message': result['error']}, status=400)
+
+        return api_response(data=result)
+    except Exception as e:
+        return api_response(error={'code': 'AI_COMPARE_ERROR', 'message': str(e)}, status=500)
 
 
 # =======================================================

@@ -1,0 +1,94 @@
+================================================================================
+                    QUICKCART - PROJECT SETUP GUIDE
+================================================================================
+
+Welcome to QuickCart! This guide explains what software you need, what tech stack
+is used, and how to start and run the project directly on your computer.
+
+
+1. SOFTWARE REQUIREMENTS
+--------------------------------------------------------------------------------
+Make sure you have the following installed on your machine:
+
+- Python 3.10 or newer (Run "python --version" in terminal to check)
+- XAMPP (For running Apache and MySQL database server)
+- Git (To manage code if needed)
+- Modern Web Browser (Google Chrome, Microsoft Edge, or Firefox)
+
+
+2. TECH STACK
+--------------------------------------------------------------------------------
+- Backend Framework: Django 6.1 (Python)
+- Database:          MySQL / MariaDB (Running on localhost via XAMPP)
+- Frontend:          HTML5, Vanilla CSS3 (Custom Dark/Light Theme),
+                     Bootstrap 5.3, JavaScript, jQuery 3.7.1, AJAX
+- Key Features:      Web Speech Voice Search, Product Comparison, Smart
+                     Cart with Promo Codes, Live Order Tracking, AI Fake
+                     Review Classifier, AI Price Predictor, AI Chatbot
+
+
+3. HOW TO RUN THE PROJECT (NORMAL ENVIRONMENT)
+--------------------------------------------------------------------------------
+No virtual environment is required. You can run all commands directly in your
+normal system terminal (PowerShell, CMD, or Terminal).
+
+STEP 1: Open project folder in your terminal
+  cd d:\Projets\ecommerce_project\ecommerce_project\quickcart
+
+STEP 2: Install required Python libraries
+  pip install -r requirements.txt
+
+STEP 3: Start XAMPP & Create Database
+  1. Open XAMPP Control Panel.
+  2. Click "Start" on Apache and "Start" on MySQL.
+  3. Open your browser and go to: http://localhost/phpmyadmin/
+  4. Click "New" on the left menu, enter database name: quickcart_db
+  5. Click "Create".
+
+STEP 4: Run database migrations
+  python manage.py migrate
+
+STEP 5: Populate initial store data (Products, Categories, Reviews, Orders)
+  python scripts/seed_data.py
+
+STEP 6: Start the local web server
+  python manage.py runserver
+
+STEP 7: Open in your browser
+  - Storefront Home:  http://127.0.0.1:8000/
+  - Customer Portal:  http://127.0.0.1:8000/customer/orders/
+  - Admin Panel:      http://127.0.0.1:8000/admin-panel/
+
+
+4. DEFAULT LOGIN ACCOUNTS
+--------------------------------------------------------------------------------
+Use these credentials to log in:
+
+- Admin Account:
+    Email:    admin@quickcart.com
+    Password: admin123
+    Role:     Full store management, inventory, orders & settings
+
+- Customer Account:
+    Email:    maya@example.com
+    Password: password123
+    Role:     Orders history, wishlist, saved addresses & tracking
+
+- Guest User:
+    You can browse products, search, compare, and add to cart without logging in.
+
+
+5. TESTING & VERIFICATION
+--------------------------------------------------------------------------------
+To run the automated tests and verify everything is working:
+  python manage.py test app
+
+
+6. COMMON FIXES / QUESTIONS
+--------------------------------------------------------------------------------
+- "Can't connect to MySQL server":
+    Open XAMPP Control Panel and make sure the MySQL module is running (green).
+
+- Voice search not hearing you:
+    Make sure you allow microphone permission in your browser when prompted.
+================================================================================

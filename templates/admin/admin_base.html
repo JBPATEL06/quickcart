@@ -210,15 +210,25 @@
           <i class="bi bi-people"></i>
           <span>Customers</span>
         </a>
+        <a href="{% url 'admin_shipping' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'shipping' %}active{% endif %}">
+          <i class="bi bi-truck"></i>
+          <span>Delivery &amp; Shipping</span>
+        </a>
+        <a href="{% url 'admin_banners' %}"
+          class="qc-admin-nav-item {% if active_admin_tab == 'banners' %}active{% endif %}">
+          <i class="bi bi-image"></i>
+          <span>Banners &amp; Ads</span>
+        </a>
         <a href="{% url 'admin_promotions' %}"
           class="qc-admin-nav-item {% if active_admin_tab == 'promotions' %}active{% endif %}">
           <i class="bi bi-tag"></i>
-          <span>Promotions</span>
+          <span>Coupons &amp; Offers</span>
         </a>
         <a href="{% url 'admin_reports' %}"
-          class="qc-admin-nav-item {% if active_admin_tab == 'reports' %}active{% endif %}">
-          <i class="bi bi-bar-chart"></i>
-          <span>Reports</span>
+          class="qc-admin-nav-item {% if active_admin_tab == 'reports' or active_admin_tab == 'feedback' %}active{% endif %}">
+          <i class="bi bi-chat-square-quote"></i>
+          <span>Feedback &amp; Reviews</span>
         </a>
         <a href="{% url 'admin_support' %}"
           class="qc-admin-nav-item {% if active_admin_tab == 'support' %}active{% endif %}">
@@ -299,6 +309,29 @@
 
       <!-- Content Block -->
       <main class="qc-admin-content">
+        <!-- Flash Messages (Consumed immediately inside admin panel) -->
+        {% if messages %}
+        <div class="mb-4">
+          {% for message in messages %}
+          <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm d-flex align-items-center justify-content-between py-2 px-3" style="border-radius: var(--radius-md); font-size: 0.875rem;" role="alert">
+            <div class="d-flex align-items-center gap-2">
+              {% if message.tags == 'success' %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% elif message.tags == 'error' %}
+                <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+              {% elif message.tags == 'warning' %}
+                <i class="bi bi-exclamation-circle-fill text-warning"></i>
+              {% else %}
+                <i class="bi bi-info-circle-fill text-info"></i>
+              {% endif %}
+              <span>{{ message }}</span>
+            </div>
+            <button type="button" class="btn-close position-static p-1 ms-3" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
         {% block admin_content %}{% endblock %}
       </main>
 

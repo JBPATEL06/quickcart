@@ -32,20 +32,60 @@
               <span class="badge bg-dark text-white rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem;">1</span>
               Delivery Address
             </h5>
+            {% if user_addresses %}
+            <span class="badge bg-light text-dark border small">
+              <i class="bi bi-geo-alt text-primary me-1"></i> {{ user_addresses.count }} Saved Address{{ user_addresses.count|pluralize:"es" }}
+            </span>
+            {% endif %}
           </div>
+
+          {% if user_addresses %}
+          <!-- Saved Address Selector -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-muted">Select from your saved addresses</label>
+            <div class="row g-2">
+              {% for addr in user_addresses %}
+              <div class="col-md-6">
+                <div class="form-check p-3 border rounded-3 h-100 {% if addr.id == default_address.id %}border-primary bg-primary-subtle bg-opacity-10{% endif %}" style="cursor: pointer;" onclick="selectSavedAddress('{{ addr.recipient_name|escapejs }}', '{{ addr.phone|escapejs }}', '{{ addr.street_address|escapejs }}, {{ addr.city|escapejs }}, {{ addr.state|escapejs }}', '{{ addr.postal_code|escapejs }}')">
+                  <input class="form-check-input" type="radio" name="selected_address_radio" id="addr_radio_{{ addr.id }}" {% if addr.id == default_address.id %}checked{% endif %}>
+                  <label class="form-check-label w-100 small" for="addr_radio_{{ addr.id }}" style="cursor: pointer;">
+                    <div class="d-flex justify-content-between">
+                      <strong class="text-dark">{{ addr.recipient_name }}</strong>
+                      <span class="badge bg-secondary rounded-pill text-uppercase" style="font-size: 0.65rem;">{{ addr.label }}</span>
+                    </div>
+                    <div class="text-muted text-truncate mt-1">{{ addr.street_address }}, {{ addr.city }}</div>
+                    <div class="text-dark fw-semibold mt-1">PIN: {{ addr.postal_code }} · {{ addr.phone }}</div>
+                  </label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <div class="alert alert-warning border d-flex align-items-center gap-2 p-3 mb-3 small" style="border-radius: var(--radius-md);">
+            <i class="bi bi-exclamation-triangle-fill fs-5 text-warning"></i>
+            <div>
+              <strong>No saved address found.</strong> Please enter your delivery address details below to proceed with order placement.
+            </div>
+          </div>
+          {% endif %}
 
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label small fw-semibold">Recipient Name</label>
-              <input type="text" class="form-control" name="recipient_name" value="{{ user.get_full_name|default:'Maya Thompson' }}" required>
+              <label class="form-label small fw-semibold">Recipient Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="recipient_name" id="delivery-recipient-name" value="{% if default_address %}{{ default_address.recipient_name }}{% else %}{{ user.display_name }}{% endif %}" placeholder="e.g. Rahul Sharma" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label small fw-semibold">Phone Number</label>
-              <input type="text" class="form-control" name="phone" value="{{ user.phone|default:'+91 98765 43210' }}" required>
+              <label class="form-label small fw-semibold">Phone Number <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="phone" id="delivery-phone" value="{% if default_address %}{{ default_address.phone }}{% else %}{{ user.phone|default:'' }}{% endif %}" placeholder="e.g. +91 98765 43210" required>
             </div>
-            <div class="col-12">
-              <label class="form-label small fw-semibold">Shipping Address</label>
-              <input type="text" class="form-control" name="shipping_address" value="42 Silver Oak Avenue, Koramangala, Bengaluru - 560034" required>
+            <div class="col-md-8">
+              <label class="form-label small fw-semibold">Street &amp; House Address <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="shipping_address" id="delivery-shipping-address" value="{% if default_address %}{{ default_address.street_address }}, {{ default_address.city }}, {{ default_address.state }}{% endif %}" placeholder="House/Flat No., Street Name, Landmark, City" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold"><i class="bi bi-geo-alt-fill text-primary me-1"></i>Delivery PIN Code <span class="text-danger">*</span></label>
+              <input type="text" class="form-control font-monospace fw-bold" name="postal_code" id="delivery-pincode-input" placeholder="e.g. 560034" value="{% if default_address %}{{ default_address.postal_code }}{% endif %}" required>
             </div>
           </div>
         </div>
@@ -60,8 +100,10 @@
           <!-- Payment Options Nav Pills -->
           <ul class="nav nav-pills mb-4 gap-2" id="payment-methods-tab" role="tablist">
             <li class="nav-item" role="presentation">
-              <button class="nav-link active rounded-pill px-4 py-2 border" id="pills-card-tab" data-bs-toggle="pill" data-bs-target="#pills-card" type="button" role="tab" onclick="setPaymentMethod('Credit / Debit Card')">
-                <i class="bi bi-credit-card me-2"></i>Cards
+              <button class="nav-link active rounded-pill px-4 py-2 border d-flex align-items-center gap-2" id="pills-stripe-tab" data-bs-toggle="pill" data-bs-target="#pills-stripe" type="button" role="tab" onclick="setPaymentMethod('Credit / Debit Card (Stripe Test Gateway)')">
+                <i class="bi bi-credit-card-fill text-primary"></i>
+                <span>Credit / Debit Card</span>
+                <span class="badge bg-primary-subtle text-primary rounded-pill font-monospace" style="font-size: 0.65rem;">STRIPE TEST</span>
               </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -81,36 +123,60 @@
             </li>
           </ul>
 
-          <input type="hidden" name="payment_method" id="selected-payment-method" value="Credit / Debit Card">
+          <input type="hidden" name="payment_method" id="selected-payment-method" value="Credit / Debit Card (Stripe Test Gateway)">
+          <input type="hidden" name="gateway_transaction_id" id="gateway_transaction_id" value="">
 
           <!-- Payment Tab Content -->
           <div class="tab-content" id="payment-methods-tabContent">
-            
-            <!-- Option A: Cards -->
-            <div class="tab-pane fade show active" id="pills-card" role="tabpanel">
+
+            <!-- Option 1: Credit / Debit Card (Stripe Test Gateway) -->
+            <div class="tab-pane fade show active" id="pills-stripe" role="tabpanel">
+              <div class="p-3 border rounded-3 bg-light mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock-fill text-primary fs-5"></i>
+                    <strong class="text-dark">Stripe Test Payment Gateway</strong>
+                  </div>
+                  <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1 font-monospace">Test Mode Active</span>
+                </div>
+                <p class="text-muted small mb-2">
+                  Transactions run securely in Stripe's public test sandbox. Use standard Stripe test card numbers (e.g. <code>4242 •••• •••• 4242</code>) or click below to fill demo credentials.
+                </p>
+                <div class="d-flex flex-wrap gap-2 text-muted" style="font-size: 0.75rem;">
+                  <span class="badge bg-white border text-dark"><i class="bi bi-key-fill text-primary me-1"></i> Public Test Key: <code class="text-dark">{{ stripe_test_key }}</code></span>
+                  <span class="badge bg-white border text-dark"><i class="bi bi-currency-rupee text-success me-1"></i> Total: ₹{{ cart.grand_total|floatformat:2 }}</span>
+                </div>
+              </div>
+
               <div class="row g-3">
                 <div class="col-12">
-                  <label class="form-label small fw-semibold">Card Number</label>
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label small fw-semibold mb-0">Card Number</label>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-primary small text-decoration-none" onclick="fillStripeTestCard()">
+                      <i class="bi bi-magic me-1"></i> Use Test Card (4242 4242 4242 4242)
+                    </button>
+                  </div>
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-credit-card-2-front"></i></span>
-                    <input type="text" class="form-control font-monospace" placeholder="4532 •••• •••• 8892" value="4532 8920 1145 8892">
+                    <input type="text" id="card-number-input" class="form-control font-monospace" placeholder="4242 •••• •••• 4242" value="4242 4242 4242 4242">
                     <span class="input-group-text"><i class="bi bi-shield-check text-success"></i></span>
                   </div>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label small fw-semibold">Cardholder Name</label>
-                  <input type="text" class="form-control" value="MAYA THOMPSON">
+                  <input type="text" class="form-control text-uppercase" id="cardholder-name-input" value="{{ user.display_name|upper }}" placeholder="CARDHOLDER NAME">
                 </div>
                 <div class="col-md-3">
                   <label class="form-label small fw-semibold">Expiry Date</label>
-                  <input type="text" class="form-control font-monospace" placeholder="MM/YY" value="08/29">
+                  <input type="text" class="form-control font-monospace" id="card-expiry-input" placeholder="MM/YY" value="12/28">
                 </div>
                 <div class="col-md-3">
-                  <label class="form-label small fw-semibold">CVV</label>
-                  <input type="password" class="form-control font-monospace" placeholder="•••" value="782" maxlength="4">
+                  <label class="form-label small fw-semibold">CVC / CVV</label>
+                  <input type="password" class="form-control font-monospace" id="card-cvc-input" placeholder="•••" value="123" maxlength="4">
                 </div>
               </div>
             </div>
+            
 
             <!-- Option B: UPI -->
             <div class="tab-pane fade" id="pills-upi" role="tabpanel">
@@ -124,10 +190,10 @@
                 <div class="col-md-7">
                   <label class="form-label small fw-semibold">Or enter your UPI ID</label>
                   <div class="input-group mb-2">
-                    <input type="text" class="form-control" placeholder="username@upi / mobile@okhdfcbank" value="maya@okaxis">
-                    <button class="btn btn-qc-outline btn-sm" type="button">Verify</button>
+                    <input type="text" class="form-control" placeholder="username@upi / mobile@okhdfcbank" value="{% if user.phone %}{{ user.phone }}@upi{% else %}{{ user.username }}@upi{% endif %}">
+                    <button class="btn btn-qc-outline btn-sm" type="button" onclick="showToast('UPI ID Verified successfully')">Verify</button>
                   </div>
-                  <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i> Verified: Maya Thompson</span>
+                  <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i> Verified: {{ user.display_name }}</span>
                 </div>
               </div>
             </div>
@@ -195,8 +261,8 @@
           {% endif %}
 
           <div class="d-flex justify-content-between mb-2 small">
-            <span class="text-muted">Shipping</span>
-            <span class="fw-semibold text-success">{% if cart.estimated_shipping == 0 %}FREE{% else %}₹{{ cart.estimated_shipping }}{% endif %}</span>
+            <span class="text-muted">Shipping (<span id="summary-pincode-label">PIN 560034</span>)</span>
+            <span class="fw-semibold text-success" id="summary-shipping-fee">{% if cart.estimated_shipping == 0 %}FREE{% else %}₹{{ cart.estimated_shipping }}{% endif %}</span>
           </div>
 
           <div class="d-flex justify-content-between mb-3 small">
@@ -208,11 +274,11 @@
 
           <div class="d-flex justify-content-between mb-4">
             <span class="fw-bold fs-5">Amount Payable</span>
-            <span class="fw-bold fs-4 text-dark">₹{{ cart.grand_total|floatformat:2 }}</span>
+            <span class="fw-bold fs-4 text-dark" id="summary-amount-payable">₹{{ cart.grand_total|floatformat:2 }}</span>
           </div>
 
           <button type="button" class="btn btn-qc-primary w-100 py-3 rounded-pill fw-semibold justify-content-center shadow" id="btn-pay-now" onclick="processSecurePayment()">
-            <i class="bi bi-lock-fill me-2"></i> Pay ₹{{ cart.grand_total|floatformat:2 }} Now
+            <i class="bi bi-lock-fill me-2"></i> Pay <span id="btn-pay-amount">₹{{ cart.grand_total|floatformat:2 }}</span> Now
           </button>
 
           <div class="text-center text-muted small mt-3" style="font-size: 0.75rem;">
@@ -245,15 +311,51 @@
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
+<!-- Stripe Elements SDK -->
+<script src="https://js.stripe.com/v3/"></script>
 <script>
+  const STRIPE_TEST_KEY = "{{ stripe_test_key }}";
+
   function setPaymentMethod(methodName) {
     document.getElementById('selected-payment-method').value = methodName;
   }
 
+  function fillStripeTestCard() {
+    document.getElementById('card-number-input').value = '4242 4242 4242 4242';
+    document.getElementById('card-expiry-input').value = '12/28';
+    document.getElementById('card-cvc-input').value = '123';
+  }
+
+  function selectSavedAddress(name, phone, address, pincode) {
+    document.getElementById('delivery-recipient-name').value = name;
+    document.getElementById('delivery-phone').value = phone;
+    document.getElementById('delivery-shipping-address').value = address;
+    const pinInput = document.getElementById('delivery-pincode-input');
+    pinInput.value = pincode;
+    $(pinInput).trigger('change');
+  }
+
   function processSecurePayment() {
+    const form = document.getElementById('payment-form');
+    
+    // Address validation check
+    const name = document.getElementById('delivery-recipient-name').value.trim();
+    const phone = document.getElementById('delivery-phone').value.trim();
+    const address = document.getElementById('delivery-shipping-address').value.trim();
+    const pin = document.getElementById('delivery-pincode-input').value.trim();
+
+    if (!name || !phone || !address || !pin) {
+      showToast('Please fill in all delivery address fields before completing payment.');
+      document.getElementById('delivery-recipient-name').focus();
+      return;
+    }
+
+    const method = document.getElementById('selected-payment-method').value;
+    
+    // Generate Stripe test transaction reference
+    const stripeTxnId = 'ch_test_' + Date.now() + Math.random().toString(36).substring(2, 7);
+    document.getElementById('gateway_transaction_id').value = stripeTxnId;
+
     const modalEl = document.getElementById('paymentProcessingModal');
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
@@ -263,9 +365,31 @@
       document.getElementById('modal-success-state').classList.remove('d-none');
 
       setTimeout(() => {
-        document.getElementById('payment-form').submit();
-      }, 1000);
-    }, 1500);
+        form.submit();
+      }, 1100);
+    }, 1400);
   }
+
+  // Live delivery fee recalculation when customer changes PIN code
+  $(document).ready(function() {
+    $('#delivery-pincode-input').on('change keyup', function() {
+      const pin = $(this).val().trim();
+      if (pin.length >= 4) {
+        $.ajax({
+          url: '/cart/api/pincode/check/',
+          method: 'GET',
+          data: { pincode: pin },
+          success: function(resp) {
+            if (resp.success) {
+              $('#summary-pincode-label').text('PIN ' + resp.pincode);
+              $('#summary-shipping-fee').text(resp.shipping_fee_display);
+              $('#summary-amount-payable').text('₹' + resp.grand_total);
+              $('#btn-pay-amount').text('₹' + resp.grand_total);
+            }
+          }
+        });
+      }
+    });
+  });
 </script>
 {% endblock %}

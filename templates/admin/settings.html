@@ -6,7 +6,7 @@
 {% block admin_content %}
 <div>
   
-  <!-- Header Title (Flowstep Admin Settings) -->
+  <!-- Header Title -->
   <div class="mb-4">
     <div class="text-muted small d-flex align-items-center gap-2 mb-1">
       <span>Admin panel</span>
@@ -14,43 +14,340 @@
       <span>Settings</span>
     </div>
     <h1 class="fw-bold fs-3 mb-1">Store Settings</h1>
-    <p class="text-muted small mb-0">Configure store metadata, payment thresholds, and security parameters</p>
+    <p class="text-muted small mb-0">Manage AI intelligence, store metadata, and administrative security</p>
   </div>
 
   <div class="row g-4">
-    
-    <!-- Store Profile -->
+
+    <!-- 1. Unified Minimalist AI Engine Card -->
+    <div class="col-12">
+      <div class="card border shadow-sm p-4" style="border-radius: var(--radius-xl); background: var(--bg-surface); border-color: var(--border-color);">
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom" style="border-color: var(--border-color) !important;">
+          <div class="d-flex align-items-center gap-3">
+            <div class="qc-metric-icon">
+              <i class="bi bi-cpu text-dark"></i>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0 fs-6">Generative AI Engine</h5>
+              <div class="text-muted small">Multi-provider key manager with automatic priority fallback</div>
+            </div>
+          </div>
+          <div>
+            <button class="btn btn-qc-primary btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addApiKeyModal">
+              <i class="bi bi-plus-lg"></i>
+              <span>Add API Key</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Clean Minimalist Providers List -->
+        <div class="d-flex flex-column gap-2">
+          {% for cfg in ai_configs %}
+          <div class="p-3 rounded-3 bg-light border d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            
+            <!-- Left: Priority + Icon + Name + Model -->
+            <div class="d-flex align-items-center gap-3">
+              <span class="badge {% if cfg.priority == 1 and cfg.is_active and not cfg.is_expired and cfg.verification_status != 'rate_limited' %}bg-dark text-white{% else %}bg-secondary-subtle text-secondary{% endif %} rounded-pill px-2 py-1 font-monospace small">
+                #{{ cfg.priority }}
+              </span>
+
+              <div class="qc-metric-icon" style="width: 38px; height: 38px; font-size: 1rem;">
+                {% if cfg.provider == 'openai' %}
+                  <i class="bi bi-robot text-dark"></i>
+                {% elif cfg.provider == 'gemini' %}
+                  <i class="bi bi-stars text-primary"></i>
+                {% elif cfg.provider == 'claude' %}
+                  <i class="bi bi-chat-quote-fill text-warning"></i>
+                {% elif cfg.provider == 'groq' %}
+                  <i class="bi bi-lightning-charge-fill text-danger"></i>
+                {% elif cfg.provider == 'grok' %}
+                  <i class="bi bi-rocket-takeoff-fill text-info"></i>
+                {% elif cfg.provider == 'openrouter' %}
+                  <i class="bi bi-shuffle text-success"></i>
+                {% else %}
+                  <i class="bi bi-cpu text-dark"></i>
+                {% endif %}
+              </div>
+
+              <div>
+                <div class="fw-semibold text-dark small d-flex align-items-center gap-2">
+                  <span>{{ cfg.get_provider_display }}</span>
+                  {% if cfg.priority == 1 and cfg.is_active and not cfg.is_expired and cfg.verification_status != 'rate_limited' %}
+                    <span class="badge bg-success-subtle text-success rounded-pill px-2 py-0" style="font-size: 0.7rem;">Primary</span>
+                  {% else %}
+                    <span class="badge bg-light text-muted border rounded-pill px-2 py-0" style="font-size: 0.7rem;">Fallback</span>
+                  {% endif %}
+                </div>
+                <div class="text-muted font-monospace" style="font-size: 0.725rem;">
+                  {{ cfg.model_name|default:'default' }} &bull; {{ cfg.masked_key }} &bull; <span class="text-dark fw-medium">{{ cfg.feature_scope_display_text }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Status + Calls + Action Buttons -->
+            <div class="d-flex align-items-center gap-3 ms-auto ms-md-0">
+              
+              <!-- Usage Count -->
+              <span class="text-muted small">
+                <strong>{{ cfg.usage_count }}</strong> calls
+              </span>
+
+              <!-- Status Badge -->
+              {% if cfg.verification_status == 'valid' %}
+                <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1 small"><i class="bi bi-check-circle me-1"></i> Valid</span>
+              {% elif cfg.verification_status == 'rate_limited' %}
+                <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-1 small"><i class="bi bi-exclamation-triangle me-1"></i> 429 Limit</span>
+              {% elif cfg.verification_status == 'expired' %}
+                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 small"><i class="bi bi-calendar-x me-1"></i> Expired</span>
+              {% elif cfg.verification_status == 'invalid' %}
+                <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-1 small"><i class="bi bi-x-circle me-1"></i> Invalid</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1 small">Untested</span>
+              {% endif %}
+
+              <!-- See/Edit Config Button -->
+              <button type="button" class="btn btn-qc-outline btn-sm rounded-pill px-3 py-1" data-bs-toggle="modal" data-bs-target="#editModal{{ cfg.id }}">
+                <i class="bi bi-sliders me-1"></i> Edit Config
+              </button>
+
+              <!-- Delete Button -->
+              {% if cfg.provider != 'local' %}
+              <form method="POST" action="{% url 'admin_settings' %}" onsubmit="return confirm('Delete this API key configuration?');">
+                {% csrf_token %}
+                <input type="hidden" name="action_type" value="ai_delete">
+                <input type="hidden" name="config_id" value="{{ cfg.id }}">
+                <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle p-1" title="Delete" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                  <i class="bi bi-trash" style="font-size: 0.75rem;"></i>
+                </button>
+              </form>
+              {% endif %}
+
+            </div>
+
+          </div>
+
+          <!-- ======================================================= -->
+          <!-- EDIT CONFIG MODAL FOR THIS SPECIFIC PROVIDER -->
+          <!-- ======================================================= -->
+          <div class="modal fade" id="editModal{{ cfg.id }}" tabindex="-1" aria-labelledby="editModalLabel{{ cfg.id }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content border-0 shadow-lg" style="border-radius: var(--radius-xl);">
+                
+                <div class="modal-header border-bottom p-4">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="qc-metric-icon">
+                      <i class="bi bi-sliders text-dark"></i>
+                    </div>
+                    <div>
+                      <h5 class="modal-title fw-bold fs-6" id="editModalLabel{{ cfg.id }}">{{ cfg.get_provider_display }} Settings &amp; Usage</h5>
+                      <div class="text-muted small">Configure priority rank, feature scope, quota limits, and API secret</div>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="p-3 bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
+                  <div class="d-flex align-items-center gap-3 flex-wrap small">
+                    <div>
+                      <span class="text-muted">Status:</span>
+                      <span id="modalStatusBadge{{ cfg.id }}">
+                        {% if cfg.verification_status == 'valid' %}
+                          <span class="badge bg-success text-white rounded-pill px-2">Operational</span>
+                        {% elif cfg.verification_status == 'rate_limited' %}
+                          <span class="badge bg-danger text-white rounded-pill px-2">Quota Exceeded (429)</span>
+                        {% elif cfg.verification_status == 'expired' %}
+                          <span class="badge bg-warning text-dark rounded-pill px-2">Expired</span>
+                        {% elif cfg.verification_status == 'invalid' %}
+                          <span class="badge bg-danger text-white rounded-pill px-2">Invalid Key</span>
+                        {% else %}
+                          <span class="badge bg-secondary text-white rounded-pill px-2">Untested</span>
+                        {% endif %}
+                      </span>
+                    </div>
+                    <div class="border-start ps-3">
+                      <span class="text-muted">Total Calls:</span>
+                      <strong>{{ cfg.usage_count }} requests</strong>
+                    </div>
+                    <div class="border-start ps-3">
+                      <span class="text-muted">Last Call:</span>
+                      <span class="text-muted">{% if cfg.last_used_at %}{{ cfg.last_used_at|timesince }} ago{% else %}Never{% endif %}</span>
+                    </div>
+                  </div>
+
+                  <!-- In-Modal AJAX Test Button (Never closes form) -->
+                  <div>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 btn-test-connection" data-id="{{ cfg.id }}" data-csrf="{{ csrf_token }}">
+                      <i class="bi bi-patch-check me-1"></i> <span>Test Connection</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Live Test Alert Box (Hidden until clicked) -->
+                <div id="testAlertBox{{ cfg.id }}" class="alert alert-sm mb-0 mx-4 mt-3 py-2 px-3 rounded-3 small d-none"></div>
+
+                <form method="POST" action="{% url 'admin_settings' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="action_type" value="ai_edit_provider">
+                  <input type="hidden" name="config_id" value="{{ cfg.id }}">
+
+                  <div class="modal-body p-4">
+                    <div class="row g-3">
+                      
+                      <!-- Provider -->
+                      <div class="col-12 col-md-6">
+                        <label class="form-label small fw-semibold">AI Provider Engine</label>
+                        <select name="provider" class="form-select form-select-sm edit-provider-select" data-target="editModelSelect{{ cfg.id }}" style="border-radius: var(--radius-md);">
+                          <option value="openai" {% if cfg.provider == 'openai' %}selected{% endif %}>OpenAI (ChatGPT)</option>
+                          <option value="gemini" {% if cfg.provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
+                          <option value="claude" {% if cfg.provider == 'claude' %}selected{% endif %}>Anthropic Claude</option>
+                          <option value="groq" {% if cfg.provider == 'groq' %}selected{% endif %}>Groq Cloud</option>
+                          <option value="grok" {% if cfg.provider == 'grok' %}selected{% endif %}>xAI Grok</option>
+                          <option value="openrouter" {% if cfg.provider == 'openrouter' %}selected{% endif %}>OpenRouter (Universal)</option>
+                          <option value="local" {% if cfg.provider == 'local' %}selected{% endif %}>Built-in Local Engine (No Key)</option>
+                        </select>
+                      </div>
+
+                      <!-- Model Dropdown (Dynamic based on Provider) -->
+                      <div class="col-12 col-md-6">
+                        <label class="form-label small fw-semibold">Select Model</label>
+                        <select name="model_name" id="editModelSelect{{ cfg.id }}" class="form-select form-select-sm edit-model-select" data-current="{{ cfg.model_name }}" style="border-radius: var(--radius-md);">
+                          <!-- Populated dynamically via JS based on selected provider -->
+                          <option value="{{ cfg.model_name }}" selected>{{ cfg.model_name }}</option>
+                        </select>
+                        <div class="text-muted mt-1" style="font-size: 0.725rem;">Models update dynamically with provider</div>
+                      </div>
+
+                      <!-- Priority Rank -->
+                      <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold">Priority Rank</label>
+                        <input type="number" name="priority" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="{{ cfg.priority }}" min="1" max="99" required>
+                        <div class="text-muted mt-1" style="font-size: 0.725rem;">1 = Primary, 2 = 1st Fallback...</div>
+                      </div>
+
+                      <!-- Multi-Feature Scope Selection -->
+                      <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold d-flex justify-content-between align-items-center mb-1">
+                          <span>When to Use (Feature Scope)</span>
+                        </label>
+                        <div class="p-2 border rounded-3 bg-light d-flex flex-column gap-1" style="border-radius: var(--radius-md) !important; font-size: 0.8rem;">
+                          <div class="form-check m-0">
+                            <input class="form-check-input scope-all-check" type="checkbox" name="feature_scope" value="all" id="scopeAll{{ cfg.id }}" data-id="{{ cfg.id }}" {% if 'all' in cfg.feature_scope_list or not cfg.feature_scope %}checked{% endif %}>
+                            <label class="form-check-label fw-semibold" for="scopeAll{{ cfg.id }}">All AI Features</label>
+                          </div>
+                          <div class="form-check m-0">
+                            <input class="form-check-input scope-item-check scope-item-{{ cfg.id }}" type="checkbox" name="feature_scope" value="compare" id="scopeCompare{{ cfg.id }}" data-id="{{ cfg.id }}" {% if 'compare' in cfg.feature_scope_list or 'all' in cfg.feature_scope_list %}checked{% endif %}>
+                            <label class="form-check-label" for="scopeCompare{{ cfg.id }}">Product Comparison</label>
+                          </div>
+                          <div class="form-check m-0">
+                            <input class="form-check-input scope-item-check scope-item-{{ cfg.id }}" type="checkbox" name="feature_scope" value="chatbot" id="scopeChat{{ cfg.id }}" data-id="{{ cfg.id }}" {% if 'chatbot' in cfg.feature_scope_list or 'all' in cfg.feature_scope_list %}checked{% endif %}>
+                            <label class="form-check-label" for="scopeChat{{ cfg.id }}">Shopping Assistant Chat</label>
+                          </div>
+                          <div class="form-check m-0">
+                            <input class="form-check-input scope-item-check scope-item-{{ cfg.id }}" type="checkbox" name="feature_scope" value="search" id="scopeSearch{{ cfg.id }}" data-id="{{ cfg.id }}" {% if 'search' in cfg.feature_scope_list or 'all' in cfg.feature_scope_list %}checked{% endif %}>
+                            <label class="form-check-label" for="scopeSearch{{ cfg.id }}">Search Intent Rescue</label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Expiry Date -->
+                      <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold">Key Expiry Date (Optional)</label>
+                        <input type="date" name="expiry_date" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="{{ cfg.expiry_date|date:'Y-m-d'|default:'' }}">
+                      </div>
+
+                      <!-- Temperature -->
+                      <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold">Temperature (0.0 to 1.0)</label>
+                        <input type="number" step="0.1" min="0.0" max="1.0" name="temperature" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="{{ cfg.temperature }}">
+                      </div>
+
+                      <!-- Secret Key -->
+                      <div class="col-12 col-md-8">
+                        <label class="form-label small fw-semibold">Secret API Key</label>
+                        <div class="input-group input-group-sm">
+                          <input type="password" name="api_key" id="editApiKeyInput{{ cfg.id }}" class="form-control font-monospace" style="border-top-left-radius: var(--radius-md); border-bottom-left-radius: var(--radius-md);" value="{{ cfg.api_key }}" placeholder="Paste new key to replace...">
+                          <button class="btn btn-dark text-white px-3" type="button" onclick="const f = $('#editApiKeyInput{{ cfg.id }}'); const isP = f.attr('type')==='password'; f.attr('type', isP?'text':'password'); $(this).html(isP?'<i class=\'bi bi-eye-slash\'></i> Hide':'<i class=\'bi bi-eye\'></i> Show');" style="border-top-right-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md);">
+                            <i class="bi bi-eye"></i> Show
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {% if cfg.last_error %}
+                    <div class="mt-3 p-3 bg-danger-subtle rounded-3 text-danger small">
+                      <strong><i class="bi bi-exclamation-triangle-fill me-1"></i> Provider Notice:</strong> {{ cfg.last_error }}
+                    </div>
+                    {% endif %}
+                  </div>
+
+                  <div class="modal-footer border-top p-3 bg-light">
+                    <button type="button" class="btn btn-qc-outline btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-qc-primary btn-sm rounded-pill px-4">Save Changes</button>
+                  </div>
+                </form>
+
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 2. Store Profile Card -->
     <div class="col-lg-6">
-      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
-        <h5 class="fw-bold mb-3 fs-6"><i class="bi bi-shop me-2"></i> Store Profile</h5>
+      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface); border-color: var(--border-color);">
+        <div class="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom" style="border-color: var(--border-color) !important;">
+          <div class="qc-metric-icon">
+            <i class="bi bi-shop text-dark"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0 fs-6">Store Profile</h5>
+            <div class="text-muted small">General store identification &amp; default charges</div>
+          </div>
+        </div>
         
         <form method="POST" action="{% url 'admin_settings' %}">
           {% csrf_token %}
+          <input type="hidden" name="action_type" value="store_settings">
           <div class="mb-3">
             <label class="form-label small fw-semibold">Store Name</label>
-            <input type="text" name="store_name" class="form-control" value="{{ settings_data.store_name|default:'QuickCart E-Commerce' }}" required>
+            <input type="text" name="store_name" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="{{ settings_data.store_name|default:'QuickCart E-Commerce' }}" required>
           </div>
           <div class="mb-3">
             <label class="form-label small fw-semibold">Support Contact Email</label>
-            <input type="email" name="support_email" class="form-control" value="{{ settings_data.support_email|default:'support@quickcart.com' }}" required>
+            <input type="email" name="support_email" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="{{ settings_data.support_email|default:'support@quickcart.com' }}" required>
           </div>
           <div class="mb-3">
             <label class="form-label small fw-semibold">Free Shipping Threshold (₹)</label>
-            <input type="number" name="free_shipping_threshold" class="form-control" value="{{ settings_data.free_shipping_threshold|default:'999' }}" required>
+            <input type="number" name="free_shipping_threshold" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="{{ settings_data.free_shipping_threshold|default:'999' }}" required>
           </div>
           <div class="mb-3">
             <label class="form-label small fw-semibold">Default Tax Rate (%)</label>
-            <input type="number" name="tax_rate" class="form-control" value="{{ settings_data.tax_rate|default:'5' }}" required>
+            <input type="number" name="tax_rate" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="{{ settings_data.tax_rate|default:'5' }}" required>
           </div>
-          <button type="submit" class="btn btn-qc-primary btn-sm">Save Store Changes</button>
+          <button type="submit" class="btn btn-qc-primary btn-sm rounded-pill px-4">Save Store Changes</button>
         </form>
       </div>
     </div>
 
-    <!-- Security & AI Moderation -->
+    <!-- 3. Security & Compliance Card -->
     <div class="col-lg-6">
-      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
-        <h5 class="fw-bold mb-3 fs-6"><i class="bi bi-shield-check me-2"></i> Security &amp; AI Engine</h5>
+      <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface); border-color: var(--border-color);">
+        <div class="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom" style="border-color: var(--border-color) !important;">
+          <div class="qc-metric-icon">
+            <i class="bi bi-shield-check text-dark"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0 fs-6">Security &amp; Compliance</h5>
+            <div class="text-muted small">Automated filters &amp; administrative access rules</div>
+          </div>
+        </div>
         
         <div class="d-flex flex-column gap-3 mb-4">
           <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
@@ -78,11 +375,297 @@
           </div>
         </div>
 
-        <button type="button" class="btn btn-qc-primary btn-sm" onclick="showToast('Security rules updated!');">Update Security Settings</button>
+        <button type="button" class="btn btn-qc-primary btn-sm rounded-pill px-4" onclick="showToast('Security rules updated!');">Update Security Settings</button>
       </div>
     </div>
 
   </div>
 
 </div>
+
+<!-- ========================================== -->
+<!-- ADD API KEY MODAL (OPENS ONLY ON BUTTON CLICK) -->
+<!-- ========================================== -->
+<div class="modal fade" id="addApiKeyModal" tabindex="-1" aria-labelledby="addApiKeyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: var(--radius-xl);">
+      
+      <div class="modal-header border-bottom p-4">
+        <div class="d-flex align-items-center gap-3">
+          <div class="qc-metric-icon">
+            <i class="bi bi-key-fill text-dark"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold fs-6" id="addApiKeyModalLabel">Add AI Provider &amp; API Key</h5>
+            <div class="text-muted small">Configure external model credentials, priority sequence, and feature assignment</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form method="POST" action="{% url 'admin_settings' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action_type" value="ai_add_provider">
+
+        <div class="modal-body p-4">
+          
+          <div class="row g-3">
+            <!-- Provider Selection -->
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-semibold">Select AI Provider</label>
+              <select name="provider" id="modalProviderSelect" class="form-select form-select-sm" style="border-radius: var(--radius-md);" required>
+                <option value="gemini" selected>Google Gemini</option>
+                <option value="openai">OpenAI (ChatGPT)</option>
+                <option value="claude">Anthropic Claude</option>
+                <option value="groq">Groq Cloud (Fast Llama)</option>
+                <option value="grok">xAI Grok</option>
+                <option value="openrouter">OpenRouter (Universal Router)</option>
+                <option value="local">Built-in Local AI Engine (No Key Needed)</option>
+              </select>
+            </div>
+
+            <!-- Model Dropdown (Dynamic based on Provider) -->
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-semibold">Select Model</label>
+              <select name="model_name" id="modalModelSelect" class="form-select form-select-sm" style="border-radius: var(--radius-md);" required>
+                <!-- Populated dynamically via JS -->
+              </select>
+              <div class="text-muted mt-1" style="font-size: 0.725rem;">Models update dynamically based on chosen provider</div>
+            </div>
+
+            <!-- Priority Rank -->
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-semibold">Priority Rank</label>
+              <input type="number" name="priority" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="{{ ai_configs|length|add:'1' }}" min="1" max="99" required>
+              <div class="text-muted mt-1" style="font-size: 0.725rem;">1 = Primary, 2 = 1st Fallback...</div>
+            </div>
+
+            <!-- Multi-Feature Scope Selection -->
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-semibold d-flex justify-content-between align-items-center mb-1">
+                <span>When to Use (Feature Scope)</span>
+              </label>
+              <div class="p-2 border rounded-3 bg-light d-flex flex-column gap-1" style="border-radius: var(--radius-md) !important; font-size: 0.8rem;">
+                <div class="form-check m-0">
+                  <input class="form-check-input scope-all-check" type="checkbox" name="feature_scope" value="all" id="scopeAllAdd" data-id="Add" checked>
+                  <label class="form-check-label fw-semibold" for="scopeAllAdd">All AI Features</label>
+                </div>
+                <div class="form-check m-0">
+                  <input class="form-check-input scope-item-check scope-item-Add" type="checkbox" name="feature_scope" value="compare" id="scopeCompareAdd" data-id="Add" checked>
+                  <label class="form-check-label" for="scopeCompareAdd">Product Comparison</label>
+                </div>
+                <div class="form-check m-0">
+                  <input class="form-check-input scope-item-check scope-item-Add" type="checkbox" name="feature_scope" value="chatbot" id="scopeChatAdd" data-id="Add" checked>
+                  <label class="form-check-label" for="scopeChatAdd">Shopping Assistant Chat</label>
+                </div>
+                <div class="form-check m-0">
+                  <input class="form-check-input scope-item-check scope-item-Add" type="checkbox" name="feature_scope" value="search" id="scopeSearchAdd" data-id="Add" checked>
+                  <label class="form-check-label" for="scopeSearchAdd">Search Intent Rescue</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Expiry Date -->
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-semibold">Key Expiry Date (Optional)</label>
+              <input type="date" name="expiry_date" class="form-control form-control-sm" style="border-radius: var(--radius-md);">
+            </div>
+
+            <!-- Temperature -->
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-semibold">Creativity Temperature</label>
+              <input type="number" step="0.1" min="0.0" max="1.0" name="temperature" class="form-control form-control-sm" style="border-radius: var(--radius-md);" value="0.7">
+            </div>
+
+            <!-- Secret API Key -->
+            <div class="col-12 col-md-8">
+              <label class="form-label small fw-semibold">Secret API Key</label>
+              <div class="input-group input-group-sm">
+                <input type="password" name="api_key" id="modalApiKeyInput" class="form-control font-monospace" style="border-top-left-radius: var(--radius-md); border-bottom-left-radius: var(--radius-md);" placeholder="sk-... / AIzaSy... / gsk_... / xai-...">
+                <button class="btn btn-dark text-white px-3" type="button" id="modalToggleApiKey" style="border-top-right-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md);">
+                  <i class="bi bi-eye"></i> Show
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer border-top p-3 bg-light">
+          <button type="button" class="btn btn-qc-outline btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-qc-primary btn-sm rounded-pill px-4">Save &amp; Register Key</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    // Model Presets per Provider
+    const providerModels = {
+      'gemini': [
+        { value: 'gemini-2.0-flash', text: 'Gemini 2.0 Flash (Recommended & Fast)' },
+        { value: 'gemini-2.0-flash-lite', text: 'Gemini 2.0 Flash-Lite (Low Latency)' },
+        { value: 'gemini-1.5-pro', text: 'Gemini 1.5 Pro (Deep Reasoning)' },
+        { value: 'gemini-1.5-flash', text: 'Gemini 1.5 Flash' }
+      ],
+      'openai': [
+        { value: 'gpt-4o-mini', text: 'GPT-4o Mini (Fast & Cost-Efficient)' },
+        { value: 'gpt-4o', text: 'GPT-4o (Flagship Omni Model)' },
+        { value: 'o3-mini', text: 'o3-mini (Advanced Reasoning)' },
+        { value: 'gpt-3.5-turbo', text: 'GPT-3.5 Turbo' }
+      ],
+      'claude': [
+        { value: 'claude-3-5-sonnet-20241022', text: 'Claude 3.5 Sonnet (State of the Art)' },
+        { value: 'claude-3-5-haiku-20241022', text: 'Claude 3.5 Haiku (High Speed)' },
+        { value: 'claude-3-opus-20240229', text: 'Claude 3 Opus (Complex Analysis)' }
+      ],
+      'groq': [
+        { value: 'llama-3.3-70b-versatile', text: 'Llama 3.3 70B Versatile (Ultra-Fast)' },
+        { value: 'llama-3.1-8b-instant', text: 'Llama 3.1 8B Instant (Sub-100ms)' },
+        { value: 'mixtral-8x7b-32768', text: 'Mixtral 8x7B (Long Context)' }
+      ],
+      'grok': [
+        { value: 'grok-2-latest', text: 'xAI Grok-2 Latest' },
+        { value: 'grok-beta', text: 'xAI Grok Beta' }
+      ],
+      'openrouter': [
+        { value: 'openai/gpt-4o-mini', text: 'OpenRouter: OpenAI GPT-4o Mini' },
+        { value: 'google/gemini-2.0-flash-001', text: 'OpenRouter: Gemini 2.0 Flash' },
+        { value: 'anthropic/claude-3.5-sonnet', text: 'OpenRouter: Claude 3.5 Sonnet' },
+        { value: 'meta-llama/llama-3.3-70b-instruct', text: 'OpenRouter: Llama 3.3 70B' },
+        { value: 'mistralai/mistral-large-2407', text: 'OpenRouter: Mistral Large' }
+      ],
+      'local': [
+        { value: 'built-in-local', text: 'Built-in Local Algorithmic Engine (0ms, Free)' }
+      ]
+    };
+
+    function populateModelDropdown(selectEl, provider, selectedValue) {
+      const models = providerModels[provider] || [{ value: 'default', text: 'Default Model' }];
+      selectEl.empty();
+      let foundMatch = false;
+
+      models.forEach(function(m) {
+        const isSel = (selectedValue && m.value === selectedValue);
+        if (isSel) foundMatch = true;
+        selectEl.append(new Option(m.text, m.value, isSel, isSel));
+      });
+
+      // If user had a custom model not in preset list, add it as custom option
+      if (selectedValue && !foundMatch && selectedValue !== 'default') {
+        selectEl.append(new Option(selectedValue + ' (Custom)', selectedValue, true, true));
+      }
+    }
+
+    // 1. Initial Populate & Change Handler for Add API Key Modal
+    const modalProviderSelect = $('#modalProviderSelect');
+    const modalModelSelect = $('#modalModelSelect');
+
+    function updateModalModels() {
+      const p = modalProviderSelect.val();
+      populateModelDropdown(modalModelSelect, p, null);
+    }
+    modalProviderSelect.on('change', updateModalModels);
+    updateModalModels(); // Run on load
+
+    // 2. Initial Populate & Change Handlers for each Edit Modal
+    $('.edit-provider-select').each(function() {
+      const provSelect = $(this);
+      const targetId = provSelect.data('target');
+      const modelSelect = $('#' + targetId);
+      const currentModel = modelSelect.data('current');
+
+      function syncEditModels() {
+        const p = provSelect.val();
+        populateModelDropdown(modelSelect, p, currentModel);
+      }
+
+      provSelect.on('change', function() {
+        populateModelDropdown(modelSelect, $(this).val(), null);
+      });
+      syncEditModels(); // Run on load
+    });
+
+    // 3. Quick Preset buttons in Add Modal
+    $('.btn-modal-preset').on('click', function() {
+      const p = $(this).data('provider');
+      const m = $(this).data('model');
+      modalProviderSelect.val(p);
+      populateModelDropdown(modalModelSelect, p, m);
+    });
+
+    // 4. Toggle password visibility in Add Modal
+    $('#modalToggleApiKey').on('click', function() {
+      const input = $('#modalApiKeyInput');
+      const isPassword = input.attr('type') === 'password';
+      input.attr('type', isPassword ? 'text' : 'password');
+      $(this).html(isPassword ? '<i class="bi bi-eye-slash"></i> Hide' : '<i class="bi bi-eye"></i> Show');
+    });
+
+    // 5. In-Modal AJAX Test Connection Handler (Keeps edit modal open!)
+    $('.btn-test-connection').on('click', function(e) {
+      e.preventDefault();
+      const btn = $(this);
+      const cfgId = btn.data('id');
+      const csrf = btn.data('csrf');
+      const alertBox = $('#testAlertBox' + cfgId);
+      const statusBadge = $('#modalStatusBadge' + cfgId);
+      const originalText = btn.find('span').text();
+
+      btn.prop('disabled', true);
+      btn.find('span').text('Testing...');
+      alertBox.removeClass('d-none alert-success alert-danger').addClass('alert-info').html('<i class="bi bi-hourglass-split me-1"></i> Testing live connection with provider...');
+
+      $.ajax({
+        url: '{% url "admin_settings" %}',
+        type: 'POST',
+        data: {
+          'action_type': 'ai_verify',
+          'config_id': cfgId,
+          'is_ajax': '1',
+          'csrfmiddlewaretoken': csrf
+        },
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(resp) {
+          btn.prop('disabled', false);
+          btn.find('span').text(originalText);
+
+          if (resp.success) {
+            alertBox.removeClass('alert-info alert-danger').addClass('alert-success').html('<i class="bi bi-check-circle-fill me-1"></i> ' + resp.message);
+            statusBadge.html('<span class="badge bg-success text-white rounded-pill px-2">Operational</span>');
+          } else {
+            alertBox.removeClass('alert-info alert-success').addClass('alert-danger').html('<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + resp.message);
+            statusBadge.html('<span class="badge bg-danger text-white rounded-pill px-2">' + (resp.status === 'rate_limited' ? 'Quota Exceeded (429)' : 'Invalid Key') + '</span>');
+          }
+        },
+        error: function() {
+          btn.prop('disabled', false);
+          btn.find('span').text(originalText);
+          alertBox.removeClass('alert-info alert-success').addClass('alert-danger').html('<i class="bi bi-x-circle-fill me-1"></i> Server communication error while testing.');
+        }
+      });
+    });
+    // 6. Multi-Feature Scope Checkbox Sync
+    $(document).on('change', '.scope-all-check', function() {
+      const id = $(this).data('id');
+      const isChecked = $(this).is(':checked');
+      $('.scope-item-' + id).prop('checked', isChecked);
+    });
+
+    $(document).on('change', '.scope-item-check', function() {
+      const id = $(this).data('id');
+      const total = $('.scope-item-' + id).length;
+      const checkedCount = $('.scope-item-' + id + ':checked').length;
+      $('#scopeAll' + id).prop('checked', total === checkedCount);
+    });
+  });
+</script>
 {% endblock %}

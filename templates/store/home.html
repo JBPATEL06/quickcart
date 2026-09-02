@@ -6,7 +6,46 @@
 {% block content %}
 <div class="container-fluid px-4 px-lg-5 py-4">
 
-  <!-- Hero Section (Flowstep Screen 2) -->
+  <!-- Hero Section -->
+  {% if hero_banners %}
+  <div id="homeHeroCarousel" class="carousel slide mb-5" data-bs-ride="carousel" data-bs-interval="5000">
+    <div class="carousel-inner" style="border-radius: var(--radius-xl); overflow: hidden;">
+      {% for b in hero_banners %}
+      <div class="carousel-item {% if forloop.first %}active{% endif %}">
+        <section class="qc-hero-banner position-relative d-flex align-items-center" style="background: linear-gradient(135deg, rgba(15,23,42,0.85) 0%, rgba(30,41,59,0.7) 100%), url('{{ b.image_url }}') center/cover no-repeat; min-height: 380px;">
+          <div class="qc-hero-circle-1"></div>
+          <div class="qc-hero-circle-2"></div>
+          
+          <div class="position-relative z-1 p-4 p-md-5" style="max-width: 600px;">
+            <span class="badge mb-3 px-3 py-2 text-uppercase tracking-wider" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.3); font-size: 0.75rem;">
+              {{ b.badge_text }}
+            </span>
+            <h1 class="display-5 fw-bold lh-tight mb-3 text-white">
+              {{ b.title }}
+            </h1>
+            {% if b.subtitle %}
+            <p class="text-white-50 fs-5 mb-4">
+              {{ b.subtitle }}
+            </p>
+            {% endif %}
+            <a href="{{ b.cta_link }}" class="btn btn-light rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow">
+              {{ b.cta_text }} <i class="bi bi-arrow-right"></i>
+            </a>
+          </div>
+        </section>
+      </div>
+      {% endfor %}
+    </div>
+    {% if hero_banners|length > 1 %}
+    <button class="carousel-control-prev" type="button" data-bs-target="#homeHeroCarousel" data-bs-slide="prev">
+      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#homeHeroCarousel" data-bs-slide="next">
+      <span class="carousel-control-next-icon" aria-hidden="true"></span>
+    </button>
+    {% endif %}
+  </div>
+  {% else %}
   <section class="qc-hero-banner mb-5">
     <div class="qc-hero-circle-1"></div>
     <div class="qc-hero-circle-2"></div>
@@ -26,6 +65,7 @@
       </a>
     </div>
   </section>
+  {% endif %}
 
   <!-- Categories Grid Section (Screen 2) -->
   <section class="mb-5">

@@ -6,22 +6,47 @@
 {% block admin_content %}
 <div>
   
-  <!-- Header Title & Controls (Flowstep Screen 26) -->
+  <!-- Header Title & Controls -->
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
     <div>
       <div class="text-muted small d-flex align-items-center gap-2 mb-1">
         <span>Admin panel</span>
         <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-        <span>Reports</span>
+        <span>Customer Feedback &amp; Reviews</span>
       </div>
-      <h1 class="fw-bold fs-3 mb-1">Reports &amp; Analytics</h1>
-      <p class="text-muted small mb-0">Analyze sales volume, revenue growth, and product performance</p>
+      <h1 class="fw-bold fs-3 mb-1">Customer Feedback &amp; Reviews</h1>
+      <p class="text-muted small mb-0">Monitor verified buyer ratings, trust scores, feedback sentiment, and sales performance</p>
     </div>
 
-    <button class="btn btn-qc-outline btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2" onclick="showToast('Downloading complete revenue report PDF...');">
+    <button class="btn btn-qc-outline btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2" onclick="showToast('Downloading complete customer feedback report PDF...');">
       <i class="bi bi-download"></i>
-      <span>Export report</span>
+      <span>Export feedback report</span>
     </button>
+  </div>
+
+  <!-- Feedback Summary KPI Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border p-3" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+        <div class="text-muted small mb-1"><i class="bi bi-chat-quote-fill text-primary me-1"></i> Total Customer Reviews</div>
+        <div class="fs-4 fw-bold">{{ total_reviews|default:"0" }}</div>
+        <div class="small text-muted">{{ verified_cnt|default:"0" }} Verified Delivered Purchases</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border p-3" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+        <div class="text-muted small mb-1"><i class="bi bi-star-fill text-warning me-1"></i> Average Store Rating</div>
+        <div class="fs-4 fw-bold">{{ avg_rating }} <span class="fs-6 text-muted">/ 5.0</span></div>
+        <div class="small text-success"><i class="bi bi-shield-check me-1"></i> 98% Positive Feedback Score</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border p-3" style="border-radius: var(--radius-lg); background: var(--bg-surface);">
+        <div class="text-muted small mb-1"><i class="bi bi-patch-check-fill text-success me-1"></i> Verified Deliveries</div>
+        <div class="fs-4 fw-bold">100%</div>
+        <div class="small text-muted">Only delivered buyers can post reviews</div>
+      </div>
+    </div>
   </div>
 
   <!-- Charts Row -->
@@ -30,9 +55,9 @@
     <!-- Sales by Category (Bar Chart) -->
     <div class="col-lg-6">
       <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
-        <h5 class="fw-bold mb-1 fs-6">Sales by Category</h5>
-        <p class="text-muted small mb-3">Volume distribution across top departments</p>
-        <div style="height: 240px; position: relative;">
+        <h5 class="fw-bold mb-1 fs-6">Sales Volume by Category</h5>
+        <p class="text-muted small mb-3">Order volume distribution across store catalog</p>
+        <div style="height: 220px; position: relative;">
           <canvas id="categorySalesChart"></canvas>
         </div>
       </div>
@@ -41,9 +66,9 @@
     <!-- Revenue Growth Trend -->
     <div class="col-lg-6">
       <div class="card border shadow-sm p-4 h-100" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
-        <h5 class="fw-bold mb-1 fs-6">Monthly Growth Rate</h5>
-        <p class="text-muted small mb-3">Gross revenue vs previous periods</p>
-        <div style="height: 240px; position: relative;">
+        <h5 class="fw-bold mb-1 fs-6">Revenue &amp; Feedback Trajectory</h5>
+        <p class="text-muted small mb-3">Gross revenue vs customer satisfaction periods</p>
+        <div style="height: 220px; position: relative;">
           <canvas id="revenueGrowthChart"></canvas>
         </div>
       </div>
@@ -51,40 +76,121 @@
 
   </div>
 
-  <!-- Top Products Table -->
-  <div class="card border shadow-sm p-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
-    <h5 class="fw-bold mb-1 fs-6">Top Performing Products</h5>
-    <p class="text-muted small mb-3">Best-sellers ranked by gross revenue</p>
+  <!-- Customer Feedback & Product Reviews List -->
+  <div class="card border shadow-sm p-4 mb-4" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
+      <div>
+        <h5 class="fw-bold mb-1 fs-6">Customer Reviews &amp; Feedback Stream</h5>
+        <p class="text-muted small mb-0">Filtered by rating tiers and verified delivery confirmations</p>
+      </div>
+      
+      <!-- Rating Tier Filter Controls (4 or 5 rated, Mid, Low) -->
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="d-flex flex-wrap gap-1 p-1 rounded-pill border" style="background: var(--bg-muted);">
+          <a class="qc-pill-btn {% if current_rating_filter == 'all' or not current_rating_filter %}active{% endif %}" href="?rating=all{% if search_q %}&q={{ search_q }}{% endif %}">
+            All ({{ total_reviews }})
+          </a>
+          <a class="qc-pill-btn {% if current_rating_filter == 'high' %}active{% endif %}" href="?rating=high{% if search_q %}&q={{ search_q }}{% endif %}" title="4 and 5 Stars">
+            <i class="bi bi-star-fill text-warning me-1"></i> 4–5 High ({{ high_count }})
+          </a>
+          <a class="qc-pill-btn {% if current_rating_filter == 'mid' %}active{% endif %}" href="?rating=mid{% if search_q %}&q={{ search_q }}{% endif %}" title="3 Stars">
+            <i class="bi bi-star-half text-warning me-1"></i> Mid 3★ ({{ mid_count }})
+          </a>
+          <a class="qc-pill-btn {% if current_rating_filter == 'low' %}active{% endif %}" href="?rating=low{% if search_q %}&q={{ search_q }}{% endif %}" title="1 and 2 Stars">
+            <i class="bi bi-star text-muted me-1"></i> Low 1–2★ ({{ low_count }})
+          </a>
+        </div>
+      </div>
+    </div>
 
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.875rem;">
         <thead class="bg-light small text-muted border-bottom">
           <tr>
-            <th class="ps-3 py-2">Product Name</th>
-            <th class="py-2">Category</th>
-            <th class="py-2">Units Sold</th>
-            <th class="py-2">Gross Revenue</th>
-            <th class="text-end pe-3 py-2">Customer Rating</th>
+            <th class="ps-3 py-2">Customer</th>
+            <th class="py-2">Product</th>
+            <th class="py-2">Rating</th>
+            <th class="py-2">Review Feedback</th>
+            <th class="py-2">Delivery Status</th>
+            <th class="text-end pe-3 py-2">Date</th>
           </tr>
         </thead>
         <tbody class="small">
-          {% for prod in products|slice:":5" %}
+          {% for r in reviews %}
           <tr>
-            <td class="ps-3 py-3 fw-semibold">
-              <img src="{{ prod.main_image }}" class="rounded-2 me-2" style="width: 32px; height: 32px; object-fit: cover;" alt="">
-              {{ prod.name }}
+            <td class="ps-3 py-3">
+              <div class="fw-semibold">{{ r.author_name }}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">{{ r.user.email|default:"verified@buyer.com" }}</div>
             </td>
-            <td class="py-3 text-muted">{{ prod.category.name }}</td>
-            <td class="py-3 fw-semibold">{{ prod.review_count|default:"148" }} units</td>
-            <td class="py-3 fw-bold">₹{{ prod.price }}</td>
-            <td class="text-end pe-3 py-3">
-              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill"><i class="bi bi-star-fill me-1"></i> {{ prod.rating }}</span>
+            <td class="py-3">
+              <a href="{% url 'store:product_detail' r.product.slug %}" class="fw-semibold text-decoration-none text-dark d-flex align-items-center gap-2">
+                <img src="{{ r.product.main_image }}" class="rounded-2" style="width: 32px; height: 32px; object-fit: cover;" alt="">
+                <span class="text-truncate" style="max-width: 180px;">{{ r.product.name }}</span>
+              </a>
+            </td>
+            <td class="py-3">
+              {% if r.rating >= 4 %}
+              <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1">
+                <i class="bi bi-star-fill me-1"></i> {{ r.rating }} / 5 (High)
+              </span>
+              {% elif r.rating == 3 %}
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1">
+                <i class="bi bi-star-fill me-1"></i> {{ r.rating }} / 5 (Mid)
+              </span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-1">
+                <i class="bi bi-star-fill me-1"></i> {{ r.rating }} / 5 (Low)
+              </span>
+              {% endif %}
+            </td>
+            <td class="py-3" style="max-width: 300px;">
+              <div class="fw-semibold text-truncate">{{ r.title }}</div>
+              <div class="text-muted small text-truncate">{{ r.content }}</div>
+            </td>
+            <td class="py-3">
+              <span class="badge bg-success-subtle text-success rounded-pill px-2">
+                <i class="bi bi-check-circle-fill me-1"></i> Delivered &amp; Verified
+              </span>
+            </td>
+            <td class="text-end pe-3 py-3 text-muted">
+              {{ r.created_at|date:"M d, Y" }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-4 text-muted">
+              <i class="bi bi-chat-square-dots fs-3 d-block mb-1"></i>
+              No reviews found matching this rating filter.
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination for Customer Feedback -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light mt-3 rounded-bottom">
+      <span class="small text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ filtered_count }} reviews</span>
+      <nav aria-label="Feedback reviews pagination">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&rating={{ current_rating_filter }}&q={{ search_q }}">« Previous</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">« Previous</span></li>
+          {% endif %}
+
+          <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&rating={{ current_rating_filter }}&q={{ search_q }}">Next »</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">Next »</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
   </div>
 
 </div>

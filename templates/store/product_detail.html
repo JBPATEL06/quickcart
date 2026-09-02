@@ -62,7 +62,7 @@
           <i class="bi bi-star-half"></i>
         </div>
         <span class="fw-bold">{{ product.rating }}</span>
-        <span class="text-muted small">({{ product.review_count }} verified reviews)</span>
+        <span class="text-muted small">({{ total_reviews_count|default:product.real_review_count }} verified review{{ total_reviews_count|default:product.real_review_count|pluralize }})</span>
       </div>
 
       <!-- Price Box -->
@@ -86,14 +86,31 @@
       </div>
 
       <!-- Delivery and Returns Badges -->
-      <div class="d-flex align-items-center gap-4 text-muted small mb-4">
+      <div class="d-flex align-items-center gap-4 text-muted small mb-3">
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-truck fs-5" style="color: var(--text-main);"></i>
-          <span>Free delivery within 3-4 days</span>
+          <span id="pdp-delivery-badge">PIN Code Express Delivery</span>
         </div>
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-arrow-counterclockwise fs-5" style="color: var(--text-main);"></i>
           <span>7-day easy returns</span>
+        </div>
+      </div>
+
+      <!-- PIN Code Deliverability Checker -->
+      <div class="p-3 rounded-3 mb-4 border" style="background: var(--bg-surface);">
+        <label class="form-label small fw-semibold d-flex align-items-center justify-content-between mb-2">
+          <span><i class="bi bi-geo-alt-fill text-primary me-1"></i>Check Delivery to PIN Code</span>
+          <span class="text-muted" style="font-size: 0.75rem;">Instant Postal Check</span>
+        </label>
+        <div class="input-group input-group-sm">
+          <input type="text" id="pdp-pincode-input" class="form-control font-monospace" placeholder="Enter 6-digit PIN code (e.g. 560034)" maxlength="10" value="560034">
+          <button class="btn btn-qc-primary px-3" type="button" id="btn-check-pincode" onclick="checkPincodeDeliverability()">
+            Check
+          </button>
+        </div>
+        <div id="pincode-result-msg" class="mt-2 small text-muted" style="font-size: 0.8rem;">
+          <i class="bi bi-info-circle me-1"></i> Enter your delivery PIN to check speed &amp; delivery charges.
         </div>
       </div>
 
@@ -110,6 +127,7 @@
             {% csrf_token %}
             <input type="hidden" name="product_id" value="{{ product.id }}">
             <input type="hidden" name="quantity" value="1">
+            <input type="hidden" name="buy_now" value="1">
             <button type="submit" class="btn btn-qc-primary w-100 py-3 rounded-3 fw-semibold d-flex align-items-center justify-content-center gap-2">
               <i class="bi bi-lightning-charge"></i> Buy Now
             </button>
@@ -137,7 +155,7 @@
         </li>
         <li class="nav-item">
           <button class="nav-link rounded-pill px-4" data-bs-toggle="tab" data-bs-target="#tab-reviews" type="button">
-            Reviews <span class="badge bg-secondary ms-1">{{ product.review_count }}</span>
+            Reviews <span class="badge bg-secondary ms-1">{{ total_reviews_count|default:product.real_review_count }}</span>
           </button>
         </li>
       </ul>
@@ -185,24 +203,8 @@
 
         <!-- Reviews -->
         <div class="tab-pane fade" id="tab-reviews">
-          <div class="row g-3">
-            {% for rev in reviews %}
-            <div class="col-md-6">
-              <div class="card border p-3 h-100" style="border-radius: var(--radius-md);">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <span class="fw-semibold small">{{ rev.title }}</span>
-                  <span class="badge-trust"><i class="bi bi-shield-check"></i> {{ rev.trust_tag }}</span>
-                </div>
-                <div class="d-flex text-warning small mb-2">
-                  {% for i in "12345" %}
-                  <i class="bi bi-star-fill"></i>
-                  {% endfor %}
-                </div>
-                <p class="text-muted small mb-2">“{{ rev.content }}”</p>
-                <div class="text-muted" style="font-size: 0.75rem;">By {{ rev.author_name }} · Verified Purchase</div>
-              </div>
-            </div>
-            {% endfor %}
+          <div id="reviews-tab-container">
+            {% include 'store/partials/reviews_list.html' %}
           </div>
         </div>
 
@@ -277,5 +279,69 @@
       $(this).addClass('border-dark border-2');
     });
   });
+
+  function checkPincodeDeliverability() {
+    const pin = $('#pdp-pincode-input').val().trim();
+    if (!pin) {
+      $('#pincode-result-msg').html('<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>Please enter a valid PIN code.</span>');
+      return;
+    }
+
+    $('#btn-check-pincode').prop('disabled', true).text('Checking...');
+
+    $.ajax({
+      url: '/cart/api/pincode/check/',
+      method: 'GET',
+      data: { pincode: pin },
+      success: function(resp) {
+        $('#btn-check-pincode').prop('disabled', false).text('Check');
+        if (resp.success) {
+          const feeClass = resp.shipping_fee === 0 ? 'text-success fw-bold' : 'text-dark fw-bold';
+          $('#pincode-result-msg').html(`
+            <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i><strong>Deliverable to ${resp.pincode}</strong></span> · 
+            <span>Delivery: <span class="${feeClass}">${resp.shipping_fee_display}</span></span> · 
+            <span class="text-muted">Speed: ${resp.estimated_days}</span>
+          `);
+          $('#pdp-delivery-badge').text(`${resp.shipping_fee_display} Delivery to ${resp.pincode} (${resp.estimated_days})`);
+        } else {
+          $('#pincode-result-msg').html(`<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${resp.message}</span>`);
+        }
+      },
+      error: function() {
+        $('#btn-check-pincode').prop('disabled', false).text('Check');
+        $('#pincode-result-msg').html('<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Unable to verify PIN code right now.</span>');
+      }
+    });
+  }
+
+  function filterReviewsAjax(rating, page) {
+    const container = $('#reviews-tab-container');
+    container.css('opacity', '0.5');
+
+    $.ajax({
+      url: window.location.pathname,
+      method: 'GET',
+      data: {
+        review_rating: rating,
+        review_page: page,
+        is_ajax: 1
+      },
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      success: function(resp) {
+        container.css('opacity', '1');
+        if (resp.success && resp.html) {
+          container.html(resp.html);
+          // Update URL query string without reloading page
+          const newUrl = `${window.location.pathname}?review_rating=${rating}&review_page=${page}#tab-reviews`;
+          window.history.replaceState(null, '', newUrl);
+        }
+      },
+      error: function() {
+        container.css('opacity', '1');
+      }
+    });
+  }
 </script>
 {% endblock %}

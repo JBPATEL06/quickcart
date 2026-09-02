@@ -21,6 +21,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // Global helper to open chatbot and automatically send an initial message
+  window.openQuickCartChatbot = function(initialMessage) {
+    if (!chatWindow) return;
+    chatWindow.classList.remove('d-none');
+    if (initialMessage && chatInput && chatForm) {
+      chatInput.value = initialMessage;
+      chatForm.dispatchEvent(new Event('submit'));
+    } else if (chatInput) {
+      chatInput.focus();
+    }
+  };
+
   if (closeBtn) {
     closeBtn.addEventListener('click', function () {
       chatWindow.classList.add('d-none');

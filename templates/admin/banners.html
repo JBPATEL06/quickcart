@@ -1,0 +1,201 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Banners &amp; Product Promotions — QuickCart Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+  <!-- Header Title & Action Buttons -->
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-3">
+    <div>
+      <div class="text-muted small d-flex align-items-center gap-2 mb-1">
+        <span>Admin panel</span>
+        <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+        <span>Banners &amp; Ads</span>
+      </div>
+      <h1 class="fw-bold fs-3 mb-1">Homepage Banners &amp; Product Spotlights ({{ banners|length }})</h1>
+      <p class="text-muted small mb-0">Create hero carousel slides, spotlight specific items, and promote high-conversion deals across the storefront</p>
+    </div>
+
+    <button class="btn btn-qc-primary btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createBannerModal">
+      <i class="bi bi-plus-lg"></i>
+      <span>Create Promotional Banner</span>
+    </button>
+  </div>
+
+  <!-- Banner Grid -->
+  <div class="row row-cols-1 row-cols-md-2 g-4 mb-4">
+    {% for banner in banners %}
+    <div class="col">
+      <div class="card border shadow-sm h-100 overflow-hidden" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
+        <div class="position-relative" style="height: 180px; overflow: hidden; background: #111;">
+          <img src="{{ banner.get_image_url }}" alt="{{ banner.title }}" class="w-100 h-100" style="object-fit: cover; opacity: 0.85;">
+          <div class="position-absolute top-0 start-0 m-3 d-flex gap-2">
+            <span class="badge bg-dark bg-opacity-75 text-white rounded-pill px-3 py-1 font-monospace">
+              {{ banner.badge_text }}
+            </span>
+            <span class="badge bg-primary rounded-pill px-2 py-1">
+              {{ banner.get_banner_type_display }}
+            </span>
+          </div>
+          <div class="position-absolute top-0 end-0 m-3">
+            {% if banner.is_active %}
+            <span class="badge bg-success rounded-pill px-2 py-1">Active</span>
+            {% else %}
+            <span class="badge bg-secondary rounded-pill px-2 py-1">Paused</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="p-4 d-flex flex-column flex-grow-1">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="fw-bold fs-6 mb-0">{{ banner.title }}</h5>
+            <span class="badge bg-light text-dark border small">Order: {{ banner.order }}</span>
+          </div>
+          {% if banner.subtitle %}
+          <p class="text-muted small mb-3">{{ banner.subtitle }}</p>
+          {% endif %}
+
+          <div class="small mb-3">
+            {% if banner.linked_product %}
+            <div class="text-muted mb-1"><i class="bi bi-box me-1 text-primary"></i> Linked Product: <strong>{{ banner.linked_product.name }}</strong></div>
+            {% elif banner.linked_category %}
+            <div class="text-muted mb-1"><i class="bi bi-tag me-1 text-primary"></i> Linked Category: <strong>{{ banner.linked_category.name }}</strong></div>
+            {% endif %}
+            <div class="text-muted"><i class="bi bi-link-45deg me-1"></i> CTA: <a href="{{ banner.cta_link }}" target="_blank" class="text-decoration-none">{{ banner.cta_text }} <i class="bi bi-arrow-up-right small"></i></a></div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top">
+            <div class="text-muted small font-monospace" style="font-size: 0.75rem;">
+              Added {{ banner.created_at|date:"M d, Y" }}
+            </div>
+            <div class="d-flex gap-2">
+              <form method="POST" action="{% url 'admin_toggle_banner' banner.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-light border rounded-pill px-3">
+                  {% if banner.is_active %}<i class="bi bi-pause me-1"></i> Pause{% else %}<i class="bi bi-play me-1"></i> Activate{% endif %}
+                </button>
+              </form>
+              <form method="POST" action="{% url 'admin_delete_banner' banner.id %}" onsubmit="return confirm('Delete this banner?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-light text-danger border rounded-pill px-3">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="text-center py-5 card border shadow-sm p-5" style="border-radius: var(--radius-xl);">
+        <i class="bi bi-image fs-1 text-muted d-block mb-3"></i>
+        <h5 class="fw-bold">No promotional banners yet</h5>
+        <p class="text-muted">Create high-impact banners to showcase special deals, product spotlight campaigns, and seasonal sales.</p>
+        <button class="btn btn-qc-primary btn-sm rounded-pill px-4 mx-auto" data-bs-toggle="modal" data-bs-target="#createBannerModal">
+          <i class="bi bi-plus-lg me-1"></i> Create First Banner
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Modal: Create Banner -->
+<div class="modal fade" id="createBannerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: var(--radius-xl);">
+      <div class="modal-header border-bottom p-4">
+        <h5 class="modal-title fw-bold fs-5">Create Promotional Banner</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{% url 'admin_create_banner' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Banner Main Title</label>
+            <input type="text" name="title" class="form-control" placeholder="e.g. Next-Gen Wireless Audio Experience" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Subtitle / Promo Pitch</label>
+            <input type="text" name="subtitle" class="form-control" placeholder="e.g. Up to 35% off high-resolution studio gear">
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Badge Pill Text</label>
+              <input type="text" name="badge_text" class="form-control" value="LIMITED OFFER" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Banner Type</label>
+              <select name="banner_type" class="form-select" required>
+                <option value="hero">Main Hero Carousel</option>
+                <option value="product_spotlight">Product Spotlight</option>
+                <option value="category_promo">Category Promo</option>
+                <option value="announcement">Top Announcement</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3 p-3 bg-light rounded-3 border">
+            <label class="form-label small fw-bold text-dark d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-upload text-primary"></i> Upload Banner Image File
+            </label>
+            <input type="file" name="image_file" class="form-control mb-2" accept="image/*">
+            <div class="d-flex align-items-center gap-2 my-2">
+              <hr class="flex-grow-1 my-0">
+              <span class="small text-muted text-uppercase fw-semibold" style="font-size: 0.7rem;">Or Enter External Image URL</span>
+              <hr class="flex-grow-1 my-0">
+            </div>
+            <input type="url" name="image_url" id="bannerImgUrlInput" class="form-control font-monospace small" placeholder="https://images.unsplash.com/photo-...">
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">CTA Button Text</label>
+              <input type="text" name="cta_text" class="form-control" value="Shop Now" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Display Order</label>
+              <input type="number" name="order" class="form-control" value="1" min="0" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">CTA Destination Link</label>
+            <input type="text" name="cta_link" class="form-control" value="/search/" placeholder="/product/slug/ or /category/slug/" required>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Link to Product (Optional)</label>
+              <select name="linked_product_id" class="form-select">
+                <option value="">-- None --</option>
+                {% for p in products %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Link to Category (Optional)</label>
+              <select name="linked_category_id" class="form-select">
+                <option value="">-- None --</option>
+                {% for c in categories %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top p-3">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-qc-primary rounded-pill px-4">Create Banner</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -10,6 +10,8 @@ urlpatterns = [
     path('category/<slug:slug>/', views.category_view, name='category'),
     path('search/', views.search_view, name='search'),
     path('product/<slug:slug>/', views.product_detail_view, name='product_detail'),
+    path('product/<int:product_id>/submit-review/', views.submit_review_view, name='submit_review'),
+    path('review/delete/<int:review_id>/', views.delete_review_view, name='delete_review'),
     path('compare/', views.compare_view, name='compare'),
 
     # Cart & Checkout
@@ -21,6 +23,7 @@ urlpatterns = [
     path('cart/api/remove/', views.api_remove_from_cart, name='api_remove'),
     path('cart/api/promo/apply/', views.api_apply_promo, name='api_apply_promo'),
     path('cart/api/promo/remove/', views.api_remove_promo, name='api_remove_promo'),
+    path('cart/api/pincode/check/', views.api_check_pincode_delivery, name='api_check_pincode'),
 
     # Content & Informational Pages
     path('about/', views.about_view, name='about'),
@@ -66,6 +69,14 @@ urlpatterns = [
     path('admin-panel/reports/', views.admin_reports_view, name='admin_reports'),
     path('admin-panel/support/', views.admin_support_view, name='admin_support'),
     path('admin-panel/support/resolve/<int:message_id>/', views.admin_resolve_support, name='admin_resolve_support'),
+    path('admin-panel/shipping/', views.admin_shipping_view, name='admin_shipping'),
+    path('admin-panel/shipping/create/', views.admin_create_shipping_rule, name='admin_create_shipping_rule'),
+    path('admin-panel/shipping/toggle/<int:rule_id>/', views.admin_toggle_shipping_rule, name='admin_toggle_shipping_rule'),
+    path('admin-panel/shipping/delete/<int:rule_id>/', views.admin_delete_shipping_rule, name='admin_delete_shipping_rule'),
+    path('admin-panel/banners/', views.admin_banners_view, name='admin_banners'),
+    path('admin-panel/banners/create/', views.admin_create_banner, name='admin_create_banner'),
+    path('admin-panel/banners/toggle/<int:banner_id>/', views.admin_toggle_banner, name='admin_toggle_banner'),
+    path('admin-panel/banners/delete/<int:banner_id>/', views.admin_delete_banner, name='admin_delete_banner'),
     path('admin-panel/settings/', views.admin_settings_view, name='admin_settings'),
 
     # AJAX Utilities
@@ -103,8 +114,9 @@ urlpatterns = [
     # 6. Pricing & AI Prediction Module
     path('api/v1/pricing/history/<int:product_id>/', api_views.api_price_history, name='api_price_history'),
 
-    # 7. AI Shopping Assistant Module
+    # 7. AI Shopping Assistant & GenUI Compare Module
     path('api/v1/assistant/message/', api_views.api_assistant_message, name='api_assistant_message'),
+    path('api/v1/ai/compare/', api_views.api_compare_ai, name='api_ai_compare'),
 
     # 8. Recommendations & Personalization Module
     path('api/v1/recommendations/home/', api_views.api_recommendations_home, name='api_recommendations_home'),

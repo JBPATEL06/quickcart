@@ -1,0 +1,9 @@
+# Core Django Framework
+Django>=5.0,<7.0
+
+# Database Connectors & Drivers
+pymysql>=1.1.0
+cryptography>=41.0.0
+
+# Image Processing (for ImageField uploads)
+Pillow>=10.0.0

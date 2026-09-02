@@ -40,7 +40,7 @@
       <div class="col-12 col-md-6 col-lg-6 d-flex justify-content-md-end">
         <div class="d-flex flex-wrap gap-1 p-1 rounded-pill border" style="background: var(--bg-muted);">
           <a class="qc-pill-btn {% if current_status == 'all' or not current_status %}active{% endif %}" href="{% url 'admin_orders' %}?status=all{% if search_query %}&q={{ search_query }}{% endif %}">All</a>
-          <a class="qc-pill-btn {% if current_status == 'placed' %}active{% endif %}" href="{% url 'admin_orders' %}?status=placed{% if search_query %}&q={{ search_query }}{% endif %}">Pending</a>
+          <a class="qc-pill-btn {% if current_status == 'placed' or current_status == 'pending' %}active{% endif %}" href="{% url 'admin_orders' %}?status=pending{% if search_query %}&q={{ search_query }}{% endif %}">Pending</a>
           <a class="qc-pill-btn {% if current_status == 'shipped' %}active{% endif %}" href="{% url 'admin_orders' %}?status=shipped{% if search_query %}&q={{ search_query }}{% endif %}">Shipped</a>
           <a class="qc-pill-btn {% if current_status == 'delivered' %}active{% endif %}" href="{% url 'admin_orders' %}?status=delivered{% if search_query %}&q={{ search_query }}{% endif %}">Delivered</a>
           <a class="qc-pill-btn {% if current_status == 'cancelled' %}active{% endif %}" href="{% url 'admin_orders' %}?status=cancelled{% if search_query %}&q={{ search_query }}{% endif %}">Cancelled</a>

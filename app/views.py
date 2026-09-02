@@ -1,17 +1,23 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Q, Sum, Count
+from django.db import models
+from django.db.models import Q, Sum, Count, Avg
 from django.core.paginator import Paginator
 from django.utils import timezone
 from .models import (
     User, Address, Category, Product, ProductImage, 
     Review, Wishlist, Cart, CartItem, Order, OrderItem, 
-    OrderTrackingEvent, SupportMessage, FAQItem, Coupon, ReviewFlag, Notification
+    OrderTrackingEvent, SupportMessage, FAQItem, Coupon, ReviewFlag, Notification,
+    ShippingRule, HomepageBanner, AIProviderConfig
 )
-from .ai_services import execute_smart_catalog_search, parse_natural_language_search_query
+from .ai_services import (
+    execute_smart_catalog_search, parse_natural_language_search_query,
+    verify_ai_provider_connection
+)
 
 # Helper: Cart session/user management
 def get_or_create_cart(request):
@@ -33,13 +39,18 @@ def home_view(request):
     trending_products = Product.objects.filter(is_trending=True)[:8]
     limited_offers = Product.objects.filter(is_limited_offer=True)[:4]
     all_products = Product.objects.all()[:12]
+    hero_banners = HomepageBanner.objects.filter(is_active=True, banner_type='hero').order_by('order', '-created_at')
+    spotlight_banners = HomepageBanner.objects.filter(is_active=True, banner_type='product_spotlight').order_by('order', '-created_at')
 
     return render(request, 'store/home.html', {
         'categories': categories,
         'trending_products': trending_products,
         'limited_offers': limited_offers,
         'all_products': all_products,
+        'hero_banners': hero_banners,
+        'spotlight_banners': spotlight_banners,
     })
+
 
 
 def category_view(request, slug):
@@ -122,14 +133,72 @@ def search_view(request):
 def product_detail_view(request, slug):
     product = get_object_or_404(Product, slug=slug)
     related_products = Product.objects.filter(category=product.category).exclude(id=product.id)[:4]
-    reviews = product.reviews.all()
     images = product.images.all()
+
+    # Reviews Rating Tier Filter (4 or 5 rated, Mid, Low)
+    all_prod_reviews = product.reviews.all().order_by('-created_at')
+    rating_filter = request.GET.get('review_rating', 'all')
+    
+    filtered_reviews = all_prod_reviews
+    if rating_filter == 'high':
+        filtered_reviews = filtered_reviews.filter(rating__in=[4, 5])
+    elif rating_filter == 'mid':
+        filtered_reviews = filtered_reviews.filter(rating=3)
+    elif rating_filter == 'low':
+        filtered_reviews = filtered_reviews.filter(rating__in=[1, 2])
+
+    high_review_count = all_prod_reviews.filter(rating__in=[4, 5]).count()
+    mid_review_count = all_prod_reviews.filter(rating=3).count()
+    low_review_count = all_prod_reviews.filter(rating__in=[1, 2]).count()
+
+    # Pagination for product reviews: 6 per page
+    review_paginator = Paginator(filtered_reviews, 6)
+    review_page_num = request.GET.get('review_page', 1)
+    review_page_obj = review_paginator.get_page(review_page_num)
+
+    # Verified Delivery Check: User can only write/edit review if the product has been delivered to them
+    can_review = False
+    user_review = None
+    if request.user.is_authenticated:
+        user_review = product.reviews.filter(user=request.user).first()
+        has_delivered_order = OrderItem.objects.filter(
+            order__user=request.user,
+            product=product,
+            order__status='delivered'
+        ).exists()
+        can_review = has_delivered_order
+
+    # Support seamless AJAX review filtering without full page reload
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('is_ajax') == '1':
+        from django.template.loader import render_to_string
+        html = render_to_string('store/partials/reviews_list.html', {
+            'product': product,
+            'reviews': review_page_obj,
+            'review_page_obj': review_page_obj,
+            'total_reviews_count': all_prod_reviews.count(),
+            'high_review_count': high_review_count,
+            'mid_review_count': mid_review_count,
+            'low_review_count': low_review_count,
+            'current_review_rating': rating_filter,
+            'can_review': can_review,
+            'user_review': user_review,
+            'request': request,
+        })
+        return JsonResponse({'success': True, 'html': html})
 
     return render(request, 'store/product_detail.html', {
         'product': product,
         'related_products': related_products,
-        'reviews': reviews,
+        'reviews': review_page_obj,
+        'review_page_obj': review_page_obj,
+        'total_reviews_count': all_prod_reviews.count(),
+        'high_review_count': high_review_count,
+        'mid_review_count': mid_review_count,
+        'low_review_count': low_review_count,
+        'current_review_rating': rating_filter,
         'images': images,
+        'can_review': can_review,
+        'user_review': user_review,
     })
 
 
@@ -150,10 +219,24 @@ def compare_view(request):
 def cart_detail_view(request):
     cart = get_or_create_cart(request)
     cart.recalculate_discounts()
-    return render(request, 'cart/cart.html', {'cart': cart})
+    
+    # Provide customer's orders so they can view orders, statuses, and tracking directly inside cart
+    user_orders = []
+    if request.user.is_authenticated:
+        user_orders = Order.objects.filter(user=request.user).prefetch_related('items').order_by('-created_at')
+
+    active_tab = request.GET.get('tab', 'cart')  # 'cart' or 'orders'
+
+    return render(request, 'cart/cart.html', {
+        'cart': cart,
+        'orders': user_orders,
+        'active_tab': active_tab,
+    })
 
 
 def api_add_to_cart(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'LOGIN_REQUIRED', 'message': 'Please log in to add items to your cart.', 'login_url': '/accounts/login/'}, status=401)
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid method'}, status=405)
 
@@ -170,6 +253,10 @@ def api_add_to_cart(request):
     item.save()
     cart.recalculate_discounts()
 
+    # If Buy Now was clicked via standard form submit or requested direct checkout redirect
+    if request.POST.get('buy_now') == '1' or request.POST.get('redirect_to_checkout') == '1' or request.headers.get('x-requested-with') != 'XMLHttpRequest':
+        return redirect('payment_gateway')
+
     return JsonResponse({
         'success': True,
         'message': f"Added {product.name} to cart.",
@@ -177,6 +264,7 @@ def api_add_to_cart(request):
         'subtotal': str(cart.subtotal),
         'discount_amount': str(cart.discount_amount),
         'grand_total': f"{cart.grand_total:.2f}",
+        'redirect_url': '/cart/payment/'
     })
 
 
@@ -316,6 +404,47 @@ def api_remove_promo(request):
     })
 
 
+def api_check_pincode_delivery(request):
+    """Check deliverability, estimated days, and shipping fee for a target PIN code"""
+    pincode = request.GET.get('pincode', '').strip()
+    if not pincode:
+        return JsonResponse({'success': False, 'message': 'Please enter a PIN code.'}, status=400)
+
+    cart = get_or_create_cart(request)
+    shipping_fee = cart.get_shipping_fee(destination_pincode=pincode)
+    
+    fee_display = "FREE" if shipping_fee == 0 else f"₹{shipping_fee:.2f}"
+    
+    # Check if this PIN matches any specific high-priority rule
+    specific_rule = ShippingRule.objects.filter(is_active=True, rule_type='pincode').order_by('priority', 'id')
+    matched_rule = None
+    for r in specific_rule:
+        pins = [p.strip() for p in r.pincode.replace(';', ',').split(',') if p.strip()]
+        if pincode in pins:
+            matched_rule = r
+            break
+
+    delivery_speed = "2-3 business days"
+    if matched_rule and matched_rule.delivery_fee == 0:
+        delivery_speed = "Next-Day Express"
+
+    grand_total = float(cart.subtotal) - float(cart.discount_amount) + float(shipping_fee) + float(cart.estimated_tax)
+
+    return JsonResponse({
+        'success': True,
+        'pincode': pincode,
+        'deliverable': True,
+        'shipping_fee': shipping_fee,
+        'shipping_fee_display': fee_display,
+        'estimated_days': delivery_speed,
+        'subtotal': str(cart.subtotal),
+        'cart_tax': str(cart.estimated_tax),
+        'grand_total': f"{grand_total:.2f}",
+        'message': f"Deliverable to {pincode} • Delivery: {fee_display} ({delivery_speed})"
+    })
+
+
+@login_required(login_url='/accounts/login/')
 def payment_gateway_view(request):
     cart = get_or_create_cart(request)
     if cart.total_items == 0:
@@ -326,11 +455,19 @@ def payment_gateway_view(request):
         recipient_name = request.POST.get('recipient_name', 'Maya Thompson')
         phone = request.POST.get('phone', '+91 98765 43210')
         shipping_address = request.POST.get('shipping_address', '42 Silver Oak Avenue, Bengaluru')
+        postal_code = request.POST.get('postal_code', '').strip()
         payment_method = request.POST.get('payment_method', 'Credit / Debit Card')
 
-        user = request.user if request.user.is_authenticated else None
-        if not user:
-            user = User.objects.filter(username='maya@example.com').first()
+        user = request.user  # Login is required — guaranteed authenticated at this point
+
+        # Strict address validation: Do not allow placing order without valid address
+        if not recipient_name or not phone or not shipping_address or not postal_code:
+            messages.error(request, "Delivery address is required. Please provide recipient name, phone, street address, and postal PIN code.")
+            return redirect('payment_gateway')
+
+        # Recalculate shipping fee using delivery postal_code
+        shipping_fee = cart.get_shipping_fee(destination_pincode=postal_code)
+        grand_total = float(cart.subtotal) - float(cart.discount_amount) + float(shipping_fee) + float(cart.estimated_tax)
 
         order = Order.objects.create(
             order_number=Order.generate_order_number(),
@@ -338,13 +475,14 @@ def payment_gateway_view(request):
             status='placed',
             recipient_name=recipient_name,
             shipping_address=shipping_address,
+            postal_code=postal_code,
             phone=phone,
             subtotal=cart.subtotal,
-            shipping_fee=cart.estimated_shipping,
+            shipping_fee=shipping_fee,
             tax=cart.estimated_tax,
             discount_amount=cart.discount_amount,
             promo_code=cart.promo_code,
-            total_amount=cart.grand_total,
+            total_amount=grand_total,
             payment_method=payment_method,
             tracking_number=f"TRK-{timezone.now().strftime('%Y%m%d%H%M%S')[-8:]}",
             carrier="QuickCart Express Delivery",
@@ -372,6 +510,14 @@ def payment_gateway_view(request):
             order_step=1
         )
 
+        # Capture optional payment gateway details
+        gateway_txn_id = request.POST.get('gateway_transaction_id', '').strip() or request.POST.get('razorpay_payment_id', '').strip()
+        if gateway_txn_id:
+            order.gateway_transaction_id = gateway_txn_id
+            order.payment_method = payment_method
+            order.is_paid = True
+            order.save()
+
         # Clear cart
         cart.items.all().delete()
         cart.promo_code = None
@@ -381,7 +527,26 @@ def payment_gateway_view(request):
         messages.success(request, f"Order #{order.order_number} confirmed! Payment processed successfully.")
         return redirect('customer:order_detail', order.order_number)
 
-    return render(request, 'cart/payment.html', {'cart': cart})
+    # Fetch user's saved addresses dynamically from database
+    user_addresses = Address.objects.filter(user=request.user).order_by('-is_default', '-created_at')
+    default_address = user_addresses.filter(is_default=True).first() or user_addresses.first()
+
+    # Initial shipping fee based on user's default postal code if available
+    initial_pincode = default_address.postal_code if default_address else ""
+    if initial_pincode:
+        cart_shipping_fee = cart.get_shipping_fee(destination_pincode=initial_pincode)
+    else:
+        cart_shipping_fee = cart.get_shipping_fee()
+
+    stripe_test_key = "pk_test_TYooMQauvdEDq54NiTphI7jx"
+
+    return render(request, 'cart/payment.html', {
+        'cart': cart,
+        'user_addresses': user_addresses,
+        'default_address': default_address,
+        'initial_shipping_fee': cart_shipping_fee,
+        'stripe_test_key': stripe_test_key,
+    })
 
 
 def about_view(request):
@@ -420,6 +585,12 @@ def checkout_view(request):
             shipping_str = f"{request.POST.get('street_address')}, {request.POST.get('city')}, {request.POST.get('state')} - {request.POST.get('postal_code')}"
             phone = request.POST.get('phone', request.user.phone or '+91 98765 43210')
 
+        dest_city = addr.city if address_id else request.POST.get('city', '')
+        actual_shipping = cart.get_shipping_fee(destination_city=dest_city)
+        taxable_amt = max(0, float(cart.subtotal) - float(cart.discount_amount))
+        actual_tax = round(taxable_amt * 0.05, 2)
+        final_total = round(taxable_amt + actual_shipping + actual_tax, 2)
+
         order = Order.objects.create(
             order_number=Order.generate_order_number(),
             user=request.user,
@@ -430,12 +601,12 @@ def checkout_view(request):
             subtotal=cart.subtotal,
             discount_amount=cart.discount_amount,
             promo_code=cart.promo_code,
-            shipping_fee=cart.estimated_shipping,
-            tax=cart.estimated_tax,
-            total_amount=cart.grand_total,
+            shipping_fee=actual_shipping,
+            tax=actual_tax,
+            total_amount=final_total,
             payment_method=payment_method,
             carrier='QuickCart Express',
-            estimated_delivery='Within 3-4 business days'
+            estimated_delivery='Within 2-3 business days'
         )
 
         for item in cart.items.all():
@@ -544,6 +715,12 @@ def signup_view(request):
 
 
 def logout_view(request):
+    # Consume and clear any lingering backlog of messages stored in the session
+    storage = messages.get_messages(request)
+    for _ in storage:
+        pass
+    storage.used = True
+
     logout(request)
     messages.info(request, "You have been logged out.")
     return redirect('store:home')
@@ -794,6 +971,68 @@ def api_search_autocomplete(request):
     return JsonResponse({'results': results})
 
 
+@login_required(login_url='/accounts/login/')
+def submit_review_view(request, product_id):
+    if request.method == 'POST':
+        product = get_object_or_404(Product, id=product_id)
+        
+        # Security Verification: Ensure the user actually had this item DELIVERED to their address
+        has_delivered_item = OrderItem.objects.filter(
+            order__user=request.user,
+            product=product,
+            order__status='delivered'
+        ).exists()
+
+        if not has_delivered_item:
+            messages.error(request, "Only verified buyers who have received delivery of this product can write or edit a review.")
+            return redirect('store:product_detail', slug=product.slug)
+
+        title = request.POST.get('title', '').strip()
+        content = request.POST.get('content', '').strip()
+        rating = int(request.POST.get('rating', 5))
+
+        if not title or not content:
+            messages.error(request, "Review title and description are required.")
+            return redirect('store:product_detail', slug=product.slug)
+
+        # Write or Edit review
+        review, created = Review.objects.update_or_create(
+            product=product,
+            user=request.user,
+            defaults={
+                'author_name': request.user.display_name or request.user.username or 'Verified Customer',
+                'title': title,
+                'content': content,
+                'rating': rating,
+                'is_verified_purchase': True,
+                'trust_tag': 'Delivered & Verified'
+            }
+        )
+
+        product.recalculate_trust_score()
+        if created:
+            messages.success(request, "Thank you! Your verified purchase review has been published.")
+        else:
+            messages.success(request, "Your review has been updated successfully.")
+
+        return redirect(f"{reverse('store:product_detail', kwargs={'slug': product.slug})}#tab-reviews")
+
+    return redirect('store:home')
+
+
+@login_required(login_url='/accounts/login/')
+def delete_review_view(request, review_id):
+    if request.method == 'POST':
+        review = get_object_or_404(Review, id=review_id, user=request.user)
+        product = review.product
+        slug = product.slug
+        review.delete()
+        product.recalculate_trust_score()
+        messages.success(request, "Your review has been removed.")
+        return redirect(f"{reverse('store:product_detail', kwargs={'slug': slug})}#tab-reviews")
+    return redirect('store:home')
+
+
 # ==========================================
 # 5. ADMIN PANEL CONTROLLERS (SCREENS 21-26)
 # ==========================================
@@ -817,6 +1056,7 @@ def admin_dashboard_view(request):
     alerts_count = flagged_reviews.count() + low_stock_products.count()
 
     recent_orders = Order.objects.all().order_by('-created_at')[:6]
+    ai_config = AIProviderConfig.get_active_config()
 
     return render(request, 'admin/dashboard.html', {
         'active_admin_tab': 'dashboard',
@@ -833,6 +1073,7 @@ def admin_dashboard_view(request):
         'shipped_cnt': shipped_cnt,
         'delivered_cnt': delivered_cnt,
         'cancelled_cnt': cancelled_cnt,
+        'ai_config': ai_config,
     })
 
 
@@ -842,7 +1083,12 @@ def admin_orders_view(request):
     orders = Order.objects.all().order_by('-created_at')
 
     if status_filter != 'all' and status_filter:
-        orders = orders.filter(status=status_filter)
+        if status_filter in ['placed', 'pending']:
+            orders = orders.filter(status__in=['placed', 'confirmed', 'processing', 'pending'])
+        elif status_filter in ['shipped', 'in_transit']:
+            orders = orders.filter(status__in=['shipped', 'in_transit', 'out_for_delivery'])
+        else:
+            orders = orders.filter(status=status_filter)
 
     if search_q:
         orders = orders.filter(
@@ -1150,6 +1396,7 @@ def admin_create_promotion(request):
             code = f"AUTO_{get_random_string(6).upper()}"
 
         if code and discount_value:
+            is_ai_exposed = (request.POST.get('is_ai_exposed') == 'on')
             Coupon.objects.create(
                 code=code,
                 title=title or f"{code} Discount",
@@ -1157,6 +1404,7 @@ def admin_create_promotion(request):
                 discount_value=discount_value,
                 min_order_amount=min_order or 0,
                 is_auto_apply=is_auto,
+                is_ai_exposed=is_ai_exposed,
                 discount_scope=discount_scope,
                 category=category,
                 valid_until=timezone.now() + timezone.timedelta(days=90),
@@ -1176,6 +1424,7 @@ def admin_edit_promotion(request, coupon_id):
         coupon.discount_value = request.POST.get('discount_value', coupon.discount_value)
         coupon.min_order_amount = request.POST.get('min_order_amount', coupon.min_order_amount)
         coupon.is_auto_apply = (request.POST.get('is_auto_apply') == 'on' or request.POST.get('promo_mode') == 'auto')
+        coupon.is_ai_exposed = (request.POST.get('is_ai_exposed') == 'on')
         coupon.discount_scope = request.POST.get('discount_scope', 'all')
         
         category_id = request.POST.get('category_id')
@@ -1200,28 +1449,222 @@ def admin_delete_promotion(request, coupon_id):
 
 
 def admin_reports_view(request):
+    rating_filter = request.GET.get('rating', 'all')
+    search_q = request.GET.get('q', '').strip()
+
+    reviews = Review.objects.select_related('product', 'user', 'flags').all().order_by('-created_at')
+
+    # Apply Rating Filter: 4 or 5 rated (high), 3 rated (mid), 1 or 2 rated (low)
+    if rating_filter == 'high':
+        reviews = reviews.filter(rating__in=[4, 5])
+    elif rating_filter == 'mid':
+        reviews = reviews.filter(rating=3)
+    elif rating_filter == 'low':
+        reviews = reviews.filter(rating__in=[1, 2])
+    elif rating_filter in ['5', '4', '3', '2', '1']:
+        reviews = reviews.filter(rating=int(rating_filter))
+
+    if search_q:
+        reviews = reviews.filter(
+            Q(title__icontains=search_q) |
+            Q(content__icontains=search_q) |
+            Q(author_name__icontains=search_q) |
+            Q(product__name__icontains=search_q)
+        )
+
     products = Product.objects.all()
+    all_reviews = Review.objects.all()
+    total_reviews = all_reviews.count()
+    avg_rating = all_reviews.aggregate(models.Avg('rating'))['rating__avg'] or 4.8
+    verified_cnt = all_reviews.filter(is_verified_purchase=True).count()
+
+    # Counts for filter pills
+    high_count = all_reviews.filter(rating__in=[4, 5]).count()
+    mid_count = all_reviews.filter(rating=3).count()
+    low_count = all_reviews.filter(rating__in=[1, 2]).count()
+
+    # Pagination: 8 reviews per page
+    paginator = Paginator(reviews, 8)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'admin/reports.html', {
         'active_admin_tab': 'reports',
+        'reviews': page_obj,
+        'page_obj': page_obj,
         'products': products,
+        'total_reviews': total_reviews,
+        'avg_rating': round(avg_rating, 1),
+        'verified_cnt': verified_cnt,
+        'current_rating_filter': rating_filter,
+        'search_q': search_q,
+        'high_count': high_count,
+        'mid_count': mid_count,
+        'low_count': low_count,
+        'filtered_count': paginator.count,
     })
 
 
 def admin_settings_view(request):
+    ai_config = AIProviderConfig.get_active_config()
+
+    # Fetch all configured AI providers ordered by priority
+    ai_configs = AIProviderConfig.objects.all().order_by('priority', 'id')
+    active_config = AIProviderConfig.get_active_config()
+
     if request.method == 'POST':
-        store_name = request.POST.get('store_name')
-        support_email = request.POST.get('support_email')
-        free_shipping = request.POST.get('free_shipping_threshold')
-        tax_rate = request.POST.get('tax_rate')
-        
-        request.session['store_settings'] = {
-            'store_name': store_name,
-            'support_email': support_email,
-            'free_shipping_threshold': free_shipping,
-            'tax_rate': tax_rate
-        }
-        messages.success(request, "Store settings and security policies updated successfully!")
-        return redirect('admin_settings')
+        action_type = request.POST.get('action_type', 'store_settings')
+
+        if action_type == 'ai_add_provider':
+            provider = request.POST.get('provider', 'local')
+            api_key = request.POST.get('api_key', '').strip()
+            model_name = request.POST.get('model_name', '').strip()
+            temperature = float(request.POST.get('temperature', 0.7))
+            priority = int(request.POST.get('priority', 1))
+            feature_scope = request.POST.get('feature_scope', 'all')
+            expiry_str = request.POST.get('expiry_date', '').strip()
+
+            expiry_date = None
+            if expiry_str:
+                from datetime import datetime
+                try:
+                    expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date()
+                except ValueError:
+                    expiry_date = None
+
+            # Support multi-select or checkbox list for feature_scope
+            feature_scopes = request.POST.getlist('feature_scope')
+            if feature_scopes:
+                if 'all' in feature_scopes or len(feature_scopes) == 3:
+                    feature_scope = 'all'
+                else:
+                    feature_scope = ','.join([s for s in feature_scopes if s != 'all'])
+            else:
+                feature_scope = request.POST.get('feature_scope', 'all')
+
+            new_cfg = AIProviderConfig.objects.create(
+                provider=provider,
+                api_key=api_key,
+                model_name=model_name or ('built-in-local' if provider == 'local' else 'default'),
+                temperature=temperature,
+                priority=priority,
+                feature_scope=feature_scope or 'all',
+                expiry_date=expiry_date,
+                is_active=True
+            )
+            messages.success(request, f"New AI Key for '{new_cfg.get_provider_display()}' added at Priority #{new_cfg.priority}!")
+            return redirect('admin_settings')
+
+        elif action_type == 'ai_edit_provider':
+            config_id = request.POST.get('config_id')
+            cfg = get_object_or_404(AIProviderConfig, id=config_id)
+            
+            provider = request.POST.get('provider', cfg.provider)
+            api_key = request.POST.get('api_key', '').strip()
+            model_name = request.POST.get('model_name', '').strip()
+            temperature = float(request.POST.get('temperature', cfg.temperature))
+            priority = int(request.POST.get('priority', cfg.priority))
+            
+            # Support multi-select or checkbox list for feature_scope
+            edit_feature_scopes = request.POST.getlist('feature_scope')
+            if edit_feature_scopes:
+                if 'all' in edit_feature_scopes or len(edit_feature_scopes) == 3:
+                    feature_scope = 'all'
+                else:
+                    feature_scope = ','.join([s for s in edit_feature_scopes if s != 'all'])
+            else:
+                feature_scope = request.POST.get('feature_scope', cfg.feature_scope)
+
+            expiry_str = request.POST.get('expiry_date', '').strip()
+
+            cfg.provider = provider
+            if api_key:
+                cfg.api_key = api_key
+            cfg.model_name = model_name or ('built-in-local' if provider == 'local' else 'default')
+            cfg.temperature = temperature
+            cfg.priority = priority
+            cfg.feature_scope = feature_scope
+
+            if expiry_str:
+                from datetime import datetime
+                try:
+                    cfg.expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+            else:
+                cfg.expiry_date = None
+
+            # Reset status so admin can verify anew
+            cfg.rate_limit_hit = False
+            cfg.save()
+            messages.success(request, f"Updated AI settings for '{cfg.get_provider_display()}'!")
+            return redirect('admin_settings')
+
+        elif action_type == 'ai_update_priority':
+            config_id = request.POST.get('config_id')
+            new_priority = request.POST.get('priority')
+            new_scope = request.POST.get('feature_scope')
+            cfg = get_object_or_404(AIProviderConfig, id=config_id)
+            if new_priority:
+                cfg.priority = int(new_priority)
+            if new_scope:
+                cfg.feature_scope = new_scope
+            cfg.save()
+            messages.success(request, f"Updated '{cfg.get_provider_display()}' to Priority #{cfg.priority}!")
+            return redirect('admin_settings')
+
+        elif action_type == 'ai_toggle':
+            config_id = request.POST.get('config_id')
+            cfg = get_object_or_404(AIProviderConfig, id=config_id)
+            cfg.is_active = not cfg.is_active
+            cfg.save()
+            state = "Enabled" if cfg.is_active else "Disabled"
+            messages.info(request, f"Provider '{cfg.get_provider_display()}' {state}.")
+            return redirect('admin_settings')
+
+        elif action_type == 'ai_verify':
+            config_id = request.POST.get('config_id')
+            cfg = get_object_or_404(AIProviderConfig, id=config_id) if config_id else active_config
+            success, msg = verify_ai_provider_connection(cfg)
+            
+            # Check if this is an in-modal AJAX request
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('is_ajax') == '1':
+                return JsonResponse({
+                    'success': success,
+                    'message': msg,
+                    'status': cfg.verification_status,
+                    'status_display': cfg.get_verification_status_display(),
+                    'last_error': cfg.last_error
+                })
+
+            if success:
+                messages.success(request, msg)
+            else:
+                messages.error(request, msg)
+            return redirect('admin_settings')
+
+        elif action_type == 'ai_delete':
+            config_id = request.POST.get('config_id')
+            cfg = get_object_or_404(AIProviderConfig, id=config_id)
+            p_name = cfg.get_provider_display()
+            cfg.delete()
+            messages.info(request, f"Deleted API config for '{p_name}'.")
+            return redirect('admin_settings')
+
+        else:
+            store_name = request.POST.get('store_name')
+            support_email = request.POST.get('support_email')
+            free_shipping = request.POST.get('free_shipping_threshold')
+            tax_rate = request.POST.get('tax_rate')
+            
+            request.session['store_settings'] = {
+                'store_name': store_name,
+                'support_email': support_email,
+                'free_shipping_threshold': free_shipping,
+                'tax_rate': tax_rate
+            }
+            messages.success(request, "Store settings and security policies updated successfully!")
+            return redirect('admin_settings')
 
     settings_data = request.session.get('store_settings', {
         'store_name': 'QuickCart E-Commerce',
@@ -1233,6 +1676,8 @@ def admin_settings_view(request):
     return render(request, 'admin/settings.html', {
         'active_admin_tab': 'settings',
         'settings_data': settings_data,
+        'ai_configs': ai_configs,
+        'active_config': active_config,
     })
 
 
@@ -1293,5 +1738,182 @@ def admin_resolve_support(request, message_id):
         msg.save()
         messages.success(request, f"Inquiry from {msg.name} marked as resolved!")
     return redirect('admin_support')
+
+
+# ==========================================
+# ADMIN: LOCATION & CUSTOM DELIVERY RULES
+# ==========================================
+
+@login_required(login_url='/accounts/login/')
+def admin_shipping_view(request):
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        messages.error(request, "Access restricted to QuickCart Store Administration.")
+        return redirect('store:home')
+
+    rules = ShippingRule.objects.all().order_by('priority', 'id')
+    categories = Category.objects.all()
+    products = Product.objects.all()
+
+    return render(request, 'admin/shipping.html', {
+        'active_admin_tab': 'shipping',
+        'rules': rules,
+        'categories': categories,
+        'products': products,
+    })
+
+
+@login_required(login_url='/accounts/login/')
+def admin_create_shipping_rule(request):
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        messages.error(request, "Access restricted to QuickCart Store Administration.")
+        return redirect('store:home')
+
+    if request.method == 'POST':
+        label = request.POST.get('label', '').strip()
+        rule_type = request.POST.get('rule_type', 'storewide')
+        min_order_amount = request.POST.get('min_order_amount', '0')
+        delivery_fee = request.POST.get('delivery_fee', '0')
+        category_id = request.POST.get('category_id')
+        product_id = request.POST.get('product_id')
+        pincode = request.POST.get('pincode', '').strip()
+        city = request.POST.get('city', '').strip()
+        priority = int(request.POST.get('priority', 10))
+
+        category = Category.objects.filter(id=category_id).first() if category_id else None
+        product = Product.objects.filter(id=product_id).first() if product_id else None
+
+        ShippingRule.objects.create(
+            label=label,
+            rule_type=rule_type,
+            min_order_amount=min_order_amount,
+            delivery_fee=delivery_fee,
+            category=category,
+            product=product,
+            pincode=pincode,
+            city=city,
+            priority=priority,
+            is_active=True
+        )
+        messages.success(request, f"Shipping rule '{label}' created successfully!")
+
+    return redirect('admin_shipping')
+
+
+@login_required(login_url='/accounts/login/')
+def admin_toggle_shipping_rule(request, rule_id):
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return redirect('store:home')
+
+    if request.method == 'POST':
+        rule = get_object_or_404(ShippingRule, id=rule_id)
+        rule.is_active = not rule.is_active
+        rule.save()
+        status_str = "activated" if rule.is_active else "deactivated"
+        messages.success(request, f"Shipping rule '{rule.label}' {status_str}.")
+
+    return redirect('admin_shipping')
+
+
+@login_required(login_url='/accounts/login/')
+def admin_delete_shipping_rule(request, rule_id):
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return redirect('store:home')
+
+    if request.method == 'POST':
+        rule = get_object_or_404(ShippingRule, id=rule_id)
+        rule.delete()
+        messages.success(request, "Shipping rule deleted.")
+
+    return redirect('admin_shipping')
+
+
+# ==========================================
+# ADMIN: HOMEPAGE BANNERS & ADS PROMOTION
+# ==========================================
+
+@login_required(login_url='/accounts/login/')
+def admin_banners_view(request):
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        messages.error(request, "Access restricted to QuickCart Store Administration.")
+        return redirect('store:home')
+
+    banners = HomepageBanner.objects.all().order_by('order', '-created_at')
+    categories = Category.objects.all()
+    products = Product.objects.all()
+
+    return render(request, 'admin/banners.html', {
+        'active_admin_tab': 'banners',
+        'banners': banners,
+        'categories': categories,
+        'products': products,
+    })
+
+
+@login_required(login_url='/accounts/login/')
+def admin_create_banner(request):
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return redirect('store:home')
+
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        subtitle = request.POST.get('subtitle', '').strip()
+        badge_text = request.POST.get('badge_text', 'Limited Offer').strip()
+        image_url = request.POST.get('image_url', '').strip()
+        image_file = request.FILES.get('image_file')
+        cta_text = request.POST.get('cta_text', 'Shop Now').strip()
+        cta_link = request.POST.get('cta_link', '/search/').strip()
+        banner_type = request.POST.get('banner_type', 'hero')
+        order = int(request.POST.get('order', 1))
+        product_id = request.POST.get('linked_product_id')
+        category_id = request.POST.get('linked_category_id')
+
+        linked_product = Product.objects.filter(id=product_id).first() if product_id else None
+        linked_category = Category.objects.filter(id=category_id).first() if category_id else None
+
+        HomepageBanner.objects.create(
+            title=title,
+            subtitle=subtitle,
+            badge_text=badge_text,
+            image_url=image_url,
+            image_file=image_file,
+            cta_text=cta_text,
+            cta_link=cta_link,
+            banner_type=banner_type,
+            order=order,
+            linked_product=linked_product,
+            linked_category=linked_category,
+            is_active=True
+        )
+        messages.success(request, f"Banner '{title}' created successfully!")
+
+    return redirect('admin_banners')
+
+
+@login_required(login_url='/accounts/login/')
+def admin_toggle_banner(request, banner_id):
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return redirect('store:home')
+
+    if request.method == 'POST':
+        banner = get_object_or_404(HomepageBanner, id=banner_id)
+        banner.is_active = not banner.is_active
+        banner.save()
+        status_str = "activated" if banner.is_active else "deactivated"
+        messages.success(request, f"Banner '{banner.title}' {status_str}.")
+
+    return redirect('admin_banners')
+
+
+@login_required(login_url='/accounts/login/')
+def admin_delete_banner(request, banner_id):
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return redirect('store:home')
+
+    if request.method == 'POST':
+        banner = get_object_or_404(HomepageBanner, id=banner_id)
+        banner.delete()
+        messages.success(request, "Banner removed successfully.")
+
+    return redirect('admin_banners')
 
 

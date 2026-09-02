@@ -7,17 +7,26 @@
 <div class="container-fluid px-4 px-lg-5 py-4">
 
   <!-- Heading -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-3">
     <div>
       <h1 class="fw-bold fs-3 mb-1">Product Comparison</h1>
-      <p class="text-muted small mb-0">Compare specifications and trust metrics side by side</p>
+      <p class="text-muted small mb-0">Compare specifications, trust scores, and get instant GenAI analysis</p>
     </div>
-    <a href="{% url 'store:search' %}" class="btn btn-qc-outline btn-sm">
-      <i class="bi bi-plus-lg"></i> Add More Products
-    </a>
+    <div class="d-flex gap-2">
+      {% if products %}
+      <button id="btnTriggerGenAI" class="btn btn-dark btn-sm rounded-pill px-3 shadow-sm d-flex align-items-center gap-2" style="background: linear-gradient(135deg, #1e293b 0%, #4338ca 100%); border: none;">
+        <i class="bi bi-stars text-warning"></i>
+        <span class="fw-semibold">✨ Ask AI to Compare</span>
+      </button>
+      {% endif %}
+      <a href="{% url 'store:search' %}" class="btn btn-qc-outline btn-sm rounded-pill px-3">
+        <i class="bi bi-plus-lg"></i> Add Products
+      </a>
+    </div>
   </div>
 
   {% if products %}
+  <!-- Standard Comparison Table Matrix -->
   <div class="card border shadow-sm overflow-hidden" style="border-radius: var(--radius-xl); background: var(--bg-surface);">
     <div class="table-responsive">
       <table class="table table-bordered align-middle mb-0" style="border-color: var(--border-color);">
@@ -43,7 +52,7 @@
           </tr>
         </thead>
 
-        <!-- Attributes Matrix (Flowstep Screen 6) -->
+        <!-- Attributes Matrix -->
         <tbody>
           <tr>
             <td class="fw-semibold bg-light p-3">Price</td>
@@ -118,6 +127,11 @@
 {% block extra_js %}
 <script>
   $(document).ready(function() {
+    // Current compared product IDs
+    const comparedProductIds = [{% for p in products %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    let recommendedWinnerId = null;
+
+    // Remove from compare button handler
     $('.btn-remove-compare').on('click', function() {
       const id = parseInt($(this).data('id'));
       let comparedIds = JSON.parse(sessionStorage.getItem('qc_compare_ids') || '[]');
@@ -127,6 +141,52 @@
         window.location.href = `/compare/?ids=${comparedIds.join(',')}`;
       } else {
         window.location.href = '/compare/';
+      }
+    });
+
+    // Trigger GenAI Compare -> Redirects / Opens AI Chatbot and sends comparison query
+    $('#btnTriggerGenAI').on('click', function() {
+      if (comparedProductIds.length < 2) {
+        if (typeof showToast === 'function') {
+          showToast('Select at least 2 products to ask AI to compare.');
+        } else {
+          alert('Select at least 2 products to ask AI to compare.');
+        }
+        return;
+      }
+
+      // Collect names of products currently in comparison
+      const productNames = [];
+      $('.btn-remove-compare').each(function() {
+        const row = $(this).closest('th');
+        const titleEl = row.find('.fw-semibold.small');
+        if (titleEl.length) {
+          productNames.push(titleEl.text().trim());
+        }
+      });
+
+      let compareQuery = "Compare these products and tell me which one is better: ";
+      if (productNames.length >= 2) {
+        compareQuery = `Compare ${productNames[0]} vs ${productNames[1]} and tell me which one is better to buy.`;
+      } else {
+        compareQuery = "Can you compare the products on my screen and recommend the best one?";
+      }
+
+      // Open AI Chatbot and send prompt automatically
+      if (typeof window.openQuickCartChatbot === 'function') {
+        window.openQuickCartChatbot(compareQuery);
+      } else {
+        // Fallback: trigger click on floating toggle button
+        const toggleBtn = document.getElementById('qc-chatbot-toggle-btn');
+        if (toggleBtn) {
+          toggleBtn.click();
+          const chatInput = document.getElementById('qc-chat-input');
+          const chatForm = document.getElementById('qc-chat-form');
+          if (chatInput && chatForm) {
+            chatInput.value = compareQuery;
+            chatForm.dispatchEvent(new Event('submit'));
+          }
+        }
       }
     });
   });
