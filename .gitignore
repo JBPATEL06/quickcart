@@ -21,7 +21,8 @@ staticfiles/
 # Logs
 *.log
 
-# IDE settings
-.idea/
-*.swp
-*~
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
